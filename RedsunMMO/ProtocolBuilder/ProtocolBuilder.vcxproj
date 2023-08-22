@@ -133,14 +133,18 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)protoc.exe --proto_path=$(ProjectDir) --csharp_out=$(SolutionDir)Protocol.Net $(ProjectDir)\%(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)protoc.exe --proto_path=$(ProjectDir) --csharp_out=$(SolutionDir)Protocol.Net $(ProjectDir)\%(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)protoc.exe --proto_path=$(ProjectDir) --csharp_out=$(SolutionDir)Protocol.Net $(ProjectDir)\%(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)protoc.exe --proto_path=$(ProjectDir) --csharp_out=$(SolutionDir)Protocol.Net $(ProjectDir)\%(Identity)</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(Filename).cs;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(Filename).cs;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).cs;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).cs;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\protoc.exe --proto_path=.\ --csharp_out=..\Protocol.Net\ .\%(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\protoc.exe --proto_path=.\ --csharp_out=..\Protocol.Net\ .\%(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\protoc.exe --proto_path=.\ --csharp_out=..\Protocol.Net\ .\%(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\protoc.exe --proto_path=.\ --csharp_out=..\Protocol.Net\ .\%(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\Protocol.Net\%(Filename).cs</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\Protocol.Net\%(Filename).cs</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\Protocol.Net\%(Filename).cs</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\Protocol.Net\%(Filename).cs</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Generate Protobuf</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Generate Protobuf</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generate Protobuf</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generate Protobuf</Message>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
