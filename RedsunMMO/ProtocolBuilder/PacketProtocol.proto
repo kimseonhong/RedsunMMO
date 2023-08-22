@@ -1,0 +1,176 @@
+syntax = "proto2";
+
+
+option optimize_for = SPEED;
+
+
+
+/*
+
+* 맵 크기 : 1024 * 1024
+* 유저 이속 : 5 / sec
+* 몬스터 이속 : 2 / sec
+
+* 유저 시야 : 30 (지름)
+* 몬스터 시야 : 10 (지름)
+
+
+
+* 몬스터 타입 (선공 / 비선공)
+
+* 클라이언트 -> 서버 로 이동 패킷은 초당 10회
+
+======
+우선 구현할것
+- 닉네임 (중복 상관없음)
+
+1) 나랑 다른 유저의 동기화만 구현
+2) 몬스터의 구현
+
+
+*/
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// 패킷 프로토콜 번호
+
+enum EPacketProtocol
+{
+	SC_ERROR_ACK = 100;			// 서버로부터 에러 응답
+	
+
+	CS_LOGIN_REQ = 10001;		// 로그인 요청
+	SC_LOGIN_ACK = 10002;		
+
+	CS_JOIN_GAME_REQ = 10011;	// 인게임 진입
+	SC_JOIN_GAME_ACK = 10022;
+
+	CS_MOVE_REQ = 20001;		// 유저 이동 요청
+	SC_MOVE_ACK = 20002;
+	CS_MOVE_END_REQ = 20003;	// 유저 이동 종료
+	SC_MOVE_END_ACK = 20004;
+
+	SC_MOVE_MONSTER_ACK = 20011;	// 몬스터 이동
+
+	CS_USER_INFO_REQ = 30001;		// 유저 정보 요청
+	SC_USER_INFO_ACK = 30002;
+
+	CS_MONSTER_INFO_REQ = 30011;	// 몬스터 정보 요청
+	SC_MONSTER_INFO_ACK = 30012;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 공용 구조체 및 enum
+
+// 몬스터 타입
+enum EMonsterType
+{
+	Aggresive = 1;		// 선공
+	Normal = 2;			// 비선공 ( 일반) 
+}
+
+
+// vector 2 구조체
+message MPosition
+{
+	required float X = 1 [default = 0.0];
+	required float Y = 2 [default = 0.0];
+}
+
+// 유저 정보
+message MUserInfo
+{
+	required int32 Seq = 1;							// 유저 구분번호
+	required string UserName = 2 [default = ""];	// 유저 닉네임
+	required MPosition Pos = 3;						// 유저 위치
+}
+
+// 몬스터 정보
+message MMonsterInfo
+{
+	required int32 Seq = 1;							// 몬스터 구분번호
+	required MPosition Pos = 2;						// 몬스터 위치
+	required EMonsterType MonsterType = 3 [default = Normal]; // 몬스터 타입
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// 패킷 구조체
+
+message SCErrorAck
+{
+	required EPacketProtocol SourceProtocol = 1;	// 어느 프로토콜로부터 에러가 발생했는가?
+	required int32 ErrorCode = 2 [default = 0];		// 에러코드
+}
+
+
+message CSLoginReq
+{
+	required string UserName = 1;					// 로그인할 유저 닉네임
+}
+message SCLoginAck
+{
+	required string UserName = 1;					// 로그인 한 이름
+	required int32 Seq = 2;							// 내 구분 번호
+}
+
+
+message CSJoinGameReq
+{
+	optional MPosition EnterPosition = 1;			// 진입하고자 하는 위치
+}
+message SCJoinGameAck
+{
+	required MPosition EnterPosition = 1;			// 실제 진입한 위치
+	repeated MMonsterInfo MonsterList = 2;			// 진입시 주변에 있는 몬스터 정보
+	// 주변에 있는 유저 정보는..?
+}
+
+
+message CSMoveReq
+{
+	required MPosition MoveTargetPosition = 1;		// 이동하고자 하는 위치
+}
+message SCMoveAck
+{
+	required int32 Seq = 1;							// 누가 이동했는지?
+	required MPosition MoveTargetPosition = 2;		// 이동 위치
+}
+message CSMoveEndReq
+{
+	required MPosition MoveEndPosition = 1;		// 이동 최종 위치
+}
+message SCMoveEndAck
+{
+	required int32 Seq = 1;						// 누가 이동했는지?
+	required MPosition MoveEndPosition = 2;		// 이동 최종 위치
+}
+message SCMonsterMoveAck
+{
+	required int32 Seq = 1;							// 누가 이동했는지?
+	required MPosition MovePosition = 2;			// 이동 위치
+	required MPosition MoveAxis = 3;				// 이동 방향 (x, y축, 각각 방향을 나타내고, 0이면 해당 축으로 이동하지 않음)
+}
+
+
+message CSUserInfoReq
+{
+	repeated int32 UserSeqList = 1;					// 요청할 유저 정보 목록
+}
+message SCUserInfoAck
+{
+	repeated MUserInfo UserInfoList = 1;			// 요청한 유저 정보 목록
+}
+
+message CSMonsterInfoReq
+{
+	repeated int32 MonsterSeqList = 1;				// 요청할 몬스터 정보 목록
+}
+message SCMonsterInfoAck
+{
+	repeated MMonsterInfo MonsterInfoList = 1;		// 요청한 몬스터 정보 목록
+}
+
