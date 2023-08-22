@@ -3,7 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedsunLibrary", "RedsunLibrary\RedsunLibrary.csproj", "{3C1B29EF-0360-4399-8D32-52DDDE0027E1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RedsunLibrary", "RedsunLibrary\RedsunLibrary.csproj", "{3C1B29EF-0360-4399-8D32-52DDDE0027E1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "솔루션 항목", "솔루션 항목", "{9EDFE315-3465-4881-B6ED-CF067DBD3C5C}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		Project.Common.props = Project.Common.props
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
