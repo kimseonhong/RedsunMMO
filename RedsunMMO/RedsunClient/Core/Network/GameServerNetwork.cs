@@ -20,14 +20,14 @@ namespace RedsunClient.Core.Network
 
         public bool SendCSLoginReq(string username)
         {
-            if (!mSocket.IsConnected)
-                return false;
-
             if (string.IsNullOrWhiteSpace(username))
                 return false;
 
             // need to Contents Common Const
             if (username.Length > 100)
+                return false;
+
+            if (!mSocket.IsConnected)
                 return false;
 
             CSLoginReq req = new CSLoginReq();
@@ -37,8 +37,77 @@ namespace RedsunClient.Core.Network
             return bRet;
         }
 
+        public bool SendCSJoinGameReq(float x, float y)
+        {
+            if (!mSocket.IsConnected)
+                return false;
 
+            CSJoinGameReq req = new CSJoinGameReq();
+            req.EnterPosition ??= new MPosition();
+            req.EnterPosition.X = x;
+            req.EnterPosition.Y = y;
 
+            bool bRet = _SendPacket(EPacketProtocol.CsJoinGameReq, req);
+            return bRet;
+        }
+
+        public bool SendCSMoveReq(float x, float y)
+        {
+            if (!mSocket.IsConnected)
+                return false;
+
+            CSMoveReq req = new CSMoveReq();
+            req.MoveTargetPosition ??= new MPosition();
+            req.MoveTargetPosition.X = x;
+            req.MoveTargetPosition.Y = y;
+            bool bRet = _SendPacket(EPacketProtocol.CsMoveReq, req);
+
+            return bRet;
+        }
+
+        public bool SendCSMoveEndReq(float x, float y)
+        {
+            if (!mSocket.IsConnected)
+                return false;
+
+            CSMoveEndReq req = new CSMoveEndReq();
+            req.MoveEndPosition ??= new MPosition();
+            req.MoveEndPosition.X = x;
+            req.MoveEndPosition.Y = y;
+            bool bRet = _SendPacket(EPacketProtocol.CsMoveEndReq, req);
+            return bRet;
+        }
+
+        public bool SendCSUserInfoReq(List<int> seqs)
+        {
+            if (seqs.Count == 0)
+                return false;
+
+            if (!mSocket.IsConnected)
+                return false;
+
+            CSUserInfoReq req = new CSUserInfoReq();
+            req.UserSeqList.AddRange(seqs);
+
+            bool bRet = _SendPacket(EPacketProtocol.CsUserInfoReq, req);
+            return bRet;
+        }
+
+        public bool SendCSMonsterInfoReq(List<int> seqs)
+        {
+            if (seqs.Count == 0)
+                return false;
+
+            if (!mSocket.IsConnected)
+                return false;
+
+            CSMonsterInfoReq req = new CSMonsterInfoReq();
+            req.MonsterSeqList.AddRange(seqs);
+
+            bool bRet = _SendPacket(EPacketProtocol.CsMonsterInfoReq, req);
+            return bRet;
+
+        }
 
 
 
@@ -60,7 +129,7 @@ namespace RedsunClient.Core.Network
 
             Packet packet = new Packet();
             //packet.pro
-            // how to set Protocol???
+            // Todo : how to set Protocol???
 
             packet.SetBody(buffer, 0, buffer.Length);
             packet._MakeBodyCheckSum(); // private 함수인거같은데

@@ -5,14 +5,14 @@ using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RedsunClient
+namespace RedsunClient.UserData
 {
     public class UserData
     {
         // Singleton Object
         public static UserData Instance = new UserData();
 
-        
+
 
 
 
