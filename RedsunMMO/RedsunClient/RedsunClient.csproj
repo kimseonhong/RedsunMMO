@@ -12,4 +12,9 @@
     <Folder Include="UserData\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Protocol.Net\Protocol.Net.csproj" />
+    <ProjectReference Include="..\RedsunLibrary\RedsunLibrary.csproj" />
+  </ItemGroup>
+
 </Project>
