@@ -1,28 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
+using RedsunLibrary.Network;
+using RedsunLibrary.Utils;
 
 namespace RedsunClient.Core.Network
 {
-    // Need to Network Common & Packet structure
-
-    internal class NetworkDefineTemp
-    {
-        public const int MAX_PACKET_BINARY_SIZE = 8000;
-    }
-
-
-
     public class SimpleClientSocket
     {
         public Socket? ClientSocket => mSocket;
 
         public bool IsConnected => mSocket?.Connected ?? false;
+
+        public string ConnectHost { get; private set; } = string.Empty;
+        public ushort ConnectPort { get; private set; } = 0;
+
+
+        public Action<string, ushort>? OnConnected { get; set; } = null;
+        public Action<string, ushort>? OnDisconnected { get; set; } = null;
+        public Action<string, ushort>? OnConnectFailed { get; set; } = null;
+        public Action<Packet>? OnReceived { get; set; } = null;
+
+
+
+
+
+
 
 
         private Socket? mSocket = null;
@@ -32,11 +34,16 @@ namespace RedsunClient.Core.Network
         private SocketAsyncEventArgs mSendEvent = new SocketAsyncEventArgs();
         private SocketAsyncEventArgs mConnectEvent = new SocketAsyncEventArgs();
 
-        private byte[] mRecvBuffer = new byte[NetworkDefineTemp.MAX_PACKET_BINARY_SIZE];
-        private byte[] mSendBuffer = new byte[NetworkDefineTemp.MAX_PACKET_BINARY_SIZE];
+        private byte[] mRecvBuffer = new byte[PacketConst.MAX_PACKET_SIZE * 2];
+        private byte[] mSendBuffer = new byte[PacketConst.MAX_PACKET_SIZE * 2];
 
         private object mSendLock = new object();
         private Queue<byte[]> mSendList = new Queue<byte[]>();
+
+        private byte[] mPacketResolveBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
+        private int mTotalPacketSize = 0;
+        private int mOffset = 0;
+
 
 
         public SimpleClientSocket()
@@ -66,7 +73,7 @@ namespace RedsunClient.Core.Network
             if (!IsConnected)
                 return;
 
-            // Todo OnDisconnected()
+            OnDisconnected?.Invoke(ConnectHost, ConnectPort);
 
             try
             {
@@ -74,12 +81,14 @@ namespace RedsunClient.Core.Network
             }
             catch (Exception)
             {
-
             }
             finally
             {
                 mSocket.Close();
                 mSocket = null;
+
+                ConnectHost = string.Empty;
+                ConnectPort = 0;
             }
             mIsConnecting = false;
 
@@ -87,14 +96,16 @@ namespace RedsunClient.Core.Network
                 mSendList.Clear();
         }
 
-        public void Send(byte[] data)
+        public void Send(Packet msg)
         {
-            // Todo : need to change byte[] to Packet
+            if (!msg._IsValidHeader()
+                || !msg._IsValidBody())
+                return;
 
             lock (mSendLock)
             {
                 bool bNeedToStart = mSendList.Count == 0;
-                mSendList.Enqueue(data);
+                mSendList.Enqueue(msg.PacketToByteArray());
                 if (bNeedToStart)
                     _StartSend();
             }
@@ -132,6 +143,8 @@ namespace RedsunClient.Core.Network
 
             mSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             mConnectEvent.RemoteEndPoint = new IPEndPoint(address, port);
+            ConnectHost = host;
+            ConnectPort = (ushort)port;
             _ResetBuffer();
 
             mIsConnecting = true;
@@ -156,34 +169,6 @@ namespace RedsunClient.Core.Network
             mSendEvent.SetBuffer(mSendBuffer, 0, mSendBuffer.Length);
         }
 
-
-
-
-        //private TcpClient mSocket = new TcpClient();
-
-        //public bool IsConnected => mSocket?.Connected ?? false;
-        ////public bool IsConnecting => mSocket?.
-
-        //public SimpleClientSocket()
-        //{
-        //    mSocket.NoDelay = true;
-        //    mSocket.ReceiveBufferSize = 8192;   // need to Max Packet Binary Size
-        //    mSocket.SendBufferSize = 8192;
-        //    //mSocket.
-        //}
-
-
-
-        //private void _Run()
-        //{
-
-        //    while(IsConnected)
-        //    {
-
-        //    }
-
-
-        //}
 
 
         private void _RecvProcess(SocketAsyncEventArgs e, int pendingCount = 0)
@@ -225,10 +210,16 @@ namespace RedsunClient.Core.Network
             {
                 if (mSendList.Count == 0)
                     return;
-                if (e.BytesTransferred != mSendList.Peek().Length)
+
+                var sendingPacket = mSendList.Peek();
+
+                // Get
+                var size = NetworkBitConverter.ToInt16(sendingPacket, PacketConst.PACKET_TOTAL_SIZE_OFFSET);
+                if (e.BytesTransferred != size)
                     return;
 
                 mSendList.Dequeue();
+
                 if (mSendList.Count > 0)
                     _StartSend();
 
@@ -263,7 +254,63 @@ namespace RedsunClient.Core.Network
 
         private void _OnReceive(byte[]? buffer, int offset, int bytesTransferred)
         {
-            // Todo : Make Packet Message
+            if (null == buffer
+                || offset < 0
+                || offset > buffer.Length
+                || bytesTransferred <= 0
+                || offset + bytesTransferred > buffer.Length)
+                return;
+
+            var DoRead = (int size) =>
+            {
+                Buffer.BlockCopy(buffer, offset, mPacketResolveBuffer, mOffset, size);
+
+                bytesTransferred -= size;
+                mOffset += size;
+                offset += size;
+            };
+
+            var ResetResolve = () =>
+            {
+                mTotalPacketSize = 0;
+                mOffset = 0;
+            };
+
+            int nReadSize;
+
+            while (bytesTransferred > 0)
+            {
+                // 전체 크기를 아직 못구했을 경우
+                if (mOffset < PacketConst.PACKET_TOTAL_SIZE) // 맨 앞 2바이트다
+                {
+                    int nRemainSizeCheck = PacketConst.PACKET_TOTAL_SIZE - mOffset;
+                    nReadSize = nRemainSizeCheck;
+                    if (bytesTransferred < nReadSize)
+                        nReadSize = bytesTransferred;   // 읽을 데이터가 부족하면 어쩔수 없지. 읽을 수 있을만큼만
+
+                    DoRead(nReadSize);
+
+                    if (mOffset == PacketConst.PACKET_TOTAL_SIZE)
+                    {
+                        mTotalPacketSize = NetworkBitConverter.ToUInt16(mPacketResolveBuffer, PacketConst.PACKET_TOTAL_SIZE_OFFSET);
+                        if (mTotalPacketSize < PacketConst.MAX_PACKET_SIZE)
+                            ResetResolve();
+                    }
+                    continue;
+                }
+
+                // 사이즈만큼 체워주기
+                nReadSize = Math.Min(bytesTransferred, mTotalPacketSize - mOffset);
+                DoRead(nReadSize);
+
+                if (mOffset == mTotalPacketSize)
+                {
+                    Packet packet = new Packet();
+                    packet.ByteArrayToPacket(mPacketResolveBuffer, 0, mTotalPacketSize);
+                    OnReceived?.Invoke(packet);
+                    ResetResolve();
+                }
+            }
         }
 
 
@@ -287,12 +334,12 @@ namespace RedsunClient.Core.Network
         {
             if (e.SocketError != SocketError.Success)
             {
-                // Todo : OnConnectFailed
+                OnConnectFailed?.Invoke(ConnectHost, ConnectPort);
                 Disconnect();
                 return;
             }
 
-            // Todo OnConnected
+            OnConnected?.Invoke(ConnectHost, ConnectPort);
             mIsConnecting = false;  // 접속됨
             if (null != mSocket)
             {
