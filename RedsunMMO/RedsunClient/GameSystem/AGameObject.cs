@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RedsunClient.Core.Mathmatics;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,16 @@ namespace RedsunClient.GameSystem
 
     public abstract class AGameObject
     {
+        public int Seq { get; set; } = 0;
         public EObjectType ObjectType { get; init; }
+        public Position CurrentPosition { get; set; } = new Position();
+        public Position BeforePosition { get; set; } = new Position();
+        public Position MoveTargetPosition { get; set; } = new Position();
+
+        public bool IsAbailable => mInitialized;
+
+        protected bool mInitialized = false;
+
 
         public AGameObject(EObjectType type)
         {
@@ -19,10 +29,18 @@ namespace RedsunClient.GameSystem
         }
 
 
-        //public void SetPosition(float x, float y);
+        public abstract void Update(float elapsedSec);
+        public abstract void Reset();
 
-        ////public bool IsInRange
 
-        //public void Update(double elapsedSec);
+        public void OnMove(MPosition pos)
+        {
+            if (!IsAbailable)
+                return;
+
+            MoveTargetPosition.Set(pos.X, pos.Y);
+        }
+
+
     }
 }

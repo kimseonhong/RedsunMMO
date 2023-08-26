@@ -63,6 +63,7 @@ namespace RedsunClient.Core.Mathmatics
             Set(other.X, other.Y);
         }
 
+        public void Reset() => Set(0.0f, 0.0f);
 
 
         public void Set(float x, float y)
@@ -71,6 +72,10 @@ namespace RedsunClient.Core.Mathmatics
             mPosition.Y = y;
         }
 
+        public void Set(Position other)
+        {
+            Set(other.X, other.Y);
+        }
 
         public float DistanceToPow(Position other)
         {
