@@ -81,8 +81,33 @@ namespace RedsunLibrary.Network
 		private int TotalPacketSize => PacketConst.PACKET_HEADER_SIZE + _bodySize;
 		private int _bodySize;
 
+		public Packet() { }
+
+		public Packet(int in_packetId)
+		{
+			_packetHeader.PacketProtocolType = in_packetId;
+		}
+
+		public Packet(int in_packetId, byte[] in_body)
+		{
+			_packetHeader.PacketProtocolType = in_packetId;
+			SetBody(in_body, 0, in_body.Length);
+		}
+
+		public Packet(int in_packetId, byte[] in_body, int offset, int size)
+		{
+			_packetHeader.PacketProtocolType = in_packetId;
+			SetBody(in_body, offset, size);
+		}
+
+		public int GetPacketId()
+		{
+			return _packetHeader.PacketProtocolType;
+		}
+
 		public bool SetBody(byte[] in_body, int in_offset, int in_size)
 		{
+			// SetBody 할때 모든걸 세팅할까.. 아니면 진짜 Body 넣을까...
 			// 로직 체크는 다음에
 
 			Buffer.BlockCopy(in_body, in_offset, _dataBuffer, PacketConst.PACKET_BODY_OFFSET, in_size);
@@ -91,20 +116,20 @@ namespace RedsunLibrary.Network
 			return true;
 		}
 
-		public void _MakeHeaderCheckSum()
+		private void _MakeHeaderCheckSum()
 		{
-			_dataBuffer[PacketConst.PACKET_HEADER_CHECKSUM_OFFSET] = 0;
+			_packetHeader.PacketHeaderChecksum = 0;
 			for (int i = 0; i < PacketConst.PACKET_HEADER_SIZE; i++)
 			{
 				if (i == PacketConst.PACKET_HEADER_CHECKSUM_OFFSET)
 				{
 					continue;
 				}
-				_dataBuffer[PacketConst.PACKET_HEADER_CHECKSUM_OFFSET] ^= _dataBuffer[i];
+				_packetHeader.PacketHeaderChecksum ^= _dataBuffer[i];
 			}
 		}
 
-		public bool _IsValidHeader()
+		public bool IsValidHeader()
 		{
 			int packetTotalSize = _packetHeader.PacketTotalSize;
 
@@ -114,7 +139,7 @@ namespace RedsunLibrary.Network
 				return false;
 			}
 
-			byte tmpCheckSum = _dataBuffer[PacketConst.PACKET_HEADER_CHECKSUM_OFFSET];
+			byte tmpCheckSum = _packetHeader.PacketHeaderChecksum;
 			for (int i = 0; i < PacketConst.PACKET_HEADER_SIZE; i++)
 			{
 				if (i == PacketConst.PACKET_HEADER_CHECKSUM_OFFSET)
@@ -131,18 +156,18 @@ namespace RedsunLibrary.Network
 			return true;
 		}
 
-		public void _MakeBodyCheckSum()
+		private void _MakeBodyCheckSum()
 		{
-			_dataBuffer[PacketConst.PACKET_BODY_CHECKSUM_OFFSET] = 0;
+			_packetHeader.PacketBodyChecksum = 0;
 			for (int i = PacketConst.PACKET_BODY_OFFSET; i < _bodySize; i++)
 			{
-				_dataBuffer[PacketConst.PACKET_BODY_CHECKSUM_OFFSET] ^= _dataBuffer[i];
+				_packetHeader.PacketBodyChecksum ^= _dataBuffer[i];
 			}
 		}
 
-		public bool _IsValidBody()
+		public bool IsValidBody()
 		{
-			byte tmpCheckSum = _dataBuffer[PacketConst.PACKET_BODY_CHECKSUM_OFFSET];
+			byte tmpCheckSum = _packetHeader.PacketBodyChecksum;
 			for (int i = PacketConst.PACKET_BODY_OFFSET; i < _bodySize; i++)
 			{
 				tmpCheckSum ^= _dataBuffer[i];
@@ -215,12 +240,12 @@ namespace RedsunLibrary.Network
 				return false;
 			}
 
-			if (false == _IsValidHeader())
+			if (false == IsValidHeader())
 			{
 				return false;
 			}
 
-			if (false == _IsValidBody())
+			if (false == IsValidBody())
 			{
 				return false;
 			}
