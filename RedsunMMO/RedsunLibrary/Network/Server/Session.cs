@@ -1,205 +1,282 @@
 ﻿using RedsunLibrary.Utils;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Sockets;
 
 namespace RedsunLibrary.Network.Server
 {
-    public class Session : IDisposable
-    {
-        public SyncState<SocketState_e> SocketState;
-        public SyncState<SocketRecvState_e> RecvState;
-        public SyncState<SocketSendState_e> SendState;
+	public class Session : IDisposable
+	{
+		public SyncState<SocketState_e> SocketState;
+		public SyncState<SocketRecvState_e> RecvState;
+		public SyncState<SocketSendState_e> SendState;
 
-        private RawSocket _socket;
+		private Int64 _sessionId;
+		private RawSocket _socket;
+		private PacketProcessor _packetProcessor;
 
-        private SocketAsyncEventArgs _recvEventArgs;
-        private SocketAsyncEventArgs _sendEventArgs;
+		private SocketAsyncEventArgs _recvEventArgs;
+		private SocketAsyncEventArgs _sendEventArgs;
+		private SocketAsyncEventArgs _disconnectEventArgs;
 
-        private byte[] _recvPacketBuffer = new byte[PacketConst.TCP_RECV_BUFFER_SIZE];
-        private byte[] _sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
+		private SessionManager _sessionManager;
+		private ISessionEventHandler _sessionEventHandler;
 
-        public Session()
-        {
-            _socket = new RawSocket();
-            SocketState = new SyncState<SocketState_e>(SocketState_e.NOT_CONNECTED);
-            RecvState = new SyncState<SocketRecvState_e>(SocketRecvState_e.NOT_RECEIVING);
-            SendState = new SyncState<SocketSendState_e>(SocketSendState_e.NOT_SENDING);
-        }
+		private byte[] _recvPacketBuffer = new byte[PacketConst.TCP_RECV_BUFFER_SIZE];
+		private byte[] _sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
+		private ConcurrentQueue<Packet> _sendPackets = new ConcurrentQueue<Packet>();
 
-        public void AcceptAsyncProcess()
-        {
-            _recvEventArgs.UserToken = this;
-            _recvEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onReceiveCompleted);
-            _recvEventArgs.SetBuffer(_recvPacketBuffer, 0, _recvPacketBuffer.Length);
+		public Int64 SessionId => _sessionId;
 
-            _sendEventArgs.UserToken = this;
-            _sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
-            _sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
+		public Session(SessionManager sm, ISessionEventHandler sessionEventHandler)
+			: this(sessionEventHandler)
+		{
+			_sessionManager = sm;
+		}
 
-            if (false == SocketState.ExchangeNotEqual(SocketState_e.CONNECTED, out var out_oldState))
-            {
-                Logger.Print("Alreay Connected Session");
-            }
+		public Session(ISessionEventHandler sessionEventHandler)
+		{
+			SocketState = new SyncState<SocketState_e>(SocketState_e.NOT_CONNECTED);
+			RecvState = new SyncState<SocketRecvState_e>(SocketRecvState_e.NOT_RECEIVING);
+			SendState = new SyncState<SocketSendState_e>(SocketSendState_e.NOT_SENDING);
 
-            //m_recvPacketMessageQueue = in_recvPacketMessageQueue;
-            //ReceiveAsync();
-            ReceiveAsync();
-            RecvState.Exchange(SocketRecvState_e.RECEIVING);
-        }
+			_sessionId = 0;
+			_socket = new RawSocket();
+			_packetProcessor = new PacketProcessor();
 
-        public void ReceiveAsync(int pendingCount = 0)
-        {
-            if (false == SocketState.IsState(SocketState_e.CONNECTED))
-            {
-                // 커넥트 상태가 아니라고..?
-                RecvState.Exchange(SocketRecvState_e.NOT_RECEIVING);
-                return;
-            }
+			_recvEventArgs = new SocketAsyncEventArgs();
+			_recvEventArgs.UserToken = this;
+			_recvEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onReceiveCompleted);
+			_recvEventArgs.SetBuffer(_recvPacketBuffer, 0, _recvPacketBuffer.Length);
 
-            // OverFlow 조심
-            if (pendingCount > 5)
-            {
-                // 강제 종료시켜버리자고
-                RecvState.Exchange(SocketRecvState_e.NOT_RECEIVING);
-                DisconnectAsync();
-                return;
-            }
+			_sendEventArgs = new SocketAsyncEventArgs();
+			_sendEventArgs.UserToken = this;
+			_sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
+			_sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
 
-            bool pending = true;
-            try
-            {
-                pending = _socket.ReceiveAsync(_recvEventArgs);
-            }
-            catch (Exception e)
-            {
-                Logger.Print(e.ToString());
-            }
+			_disconnectEventArgs = new SocketAsyncEventArgs();
+			_disconnectEventArgs.UserToken = this;
+			_disconnectEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onDisconnectCompleted);
 
-            if (false == pending)
-            {
-                ReceiveAsync(pendingCount++);
-            }
-        }
+			_sessionEventHandler = sessionEventHandler;
+		}
 
-        private void onReceiveCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
-            }
-            else
-            {
-            }
-        }
+		public void AcceptAsyncProcess(Int64 sessionId, Socket socket)
+		{
+			_sessionId = sessionId;
+			_socket = new RawSocket(socket);
 
-        public void SendAsync()
-        {
-            if (false == SocketState.IsState(SocketState_e.CONNECTED))
-            {
-                // 문제가 있음
-                // 커넥트 상태가 아니라고..?
-                SendState.Exchange(SocketSendState_e.NOT_SENDING);
-                return;
-            }
+			if (false == SocketState.ExchangeNotEqual(SocketState_e.CONNECTED, out var out_oldState))
+			{
+				Logger.Print("Alreay Connected Session");
+				_sessionEventHandler?.onConnectFailed("Alreay Connected Session");
+				DisconnectAsync();
+				return;
+			}
 
-        }
+			_sessionEventHandler?.onConnected(this);
+			//m_recvPacketMessageQueue = in_recvPacketMessageQueue;
+			//ReceiveAsync();
+			ReceiveAsync();
+			RecvState.Exchange(SocketRecvState_e.RECEIVING);
+		}
 
-        private void onSendCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
+		public void ReceiveAsync(int pendingCount = 0)
+		{
+			if (false == SocketState.IsState(SocketState_e.CONNECTED))
+			{
+				// 커넥트 상태가 아니라고..?
+				RecvState.Exchange(SocketRecvState_e.NOT_RECEIVING);
+				return;
+			}
 
-            }
-            else
-            {
-            }
-        }
+			// OverFlow 조심
+			if (pendingCount > 5)
+			{
+				// 강제 종료시켜버리자고
+				RecvState.Exchange(SocketRecvState_e.NOT_RECEIVING);
+				DisconnectAsync();
+				return;
+			}
 
-        public void DisconnectAsync()
-        {
-            if (SocketState.IsState(SocketState_e.DISCONNECTED)
-                || SocketState.IsState(SocketState_e.DISCONNECTING))
-            {
-                return;
-            }
+			bool pending = true;
+			try
+			{
+				pending = _socket.ReceiveAsync(_recvEventArgs);
+			}
+			catch (Exception e)
+			{
+				Logger.Print(e.ToString());
+			}
 
-            SocketState.Exchange(SocketState_e.DISCONNECTING);
+			if (false == pending)
+			{
+				ReceiveAsync(pendingCount++);
+			}
+		}
 
-            var disConnectArgsEvent = new SocketAsyncEventArgs();
-            disConnectArgsEvent.UserToken = this;
-            disConnectArgsEvent.Completed += new EventHandler<SocketAsyncEventArgs>(onDisconnectCompleted);
-        }
+		private void onReceiveCompleted(object sender, SocketAsyncEventArgs e)
+		{
+			try
+			{
+				// if Receive Size <= 0 , Socket Disconnect!1
+				if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
+				{
+					Session client = (Session)e.UserToken;
 
-        private void onDisconnectCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            SocketState.Exchange(SocketState_e.DISCONNECTED);
+					_packetProcessor.ReceiveProcess(e.Buffer, e.BytesTransferred);
 
-            //SimpleTcpSocket tcpSocket = (SimpleTcpSocket)e.UserToken;
-            //onDisConnectProcess?.Invoke(tcpSocket, m_disconnectResult);
-        }
+					// 패킷 꺼내와야지.
+					while (true)
+					{
+						Packet packet = _packetProcessor.TakePacket();
+						if (packet == null)
+						{
+							break;
+						}
 
-        public void Close()
-        {
-            _socket?.Close();
-            Dispose();
-        }
+						_sessionEventHandler?.onReceived(this, packet);
+					}
 
-        public void Dispose()
-        {
-            SocketState = null;
-            RecvState = null;
-            SendState = null;
+					ReceiveAsync();
+					return;
+				}
+				else
+				{
+					DisconnectAsync();
+				}
+			}
+			catch (Exception ex)
+			{
+				_sessionEventHandler?.onInvaliedReceived(this, ex);
+				onDisconnectCompleted(this, _disconnectEventArgs);
+			}
+		}
 
-            _recvEventArgs?.Dispose();
-            _sendEventArgs?.Dispose();
+		public void Send(Packet packet)
+		{
+			// Connected 가 아니라고? 
+			if (false == SocketState.IsState(SocketState_e.CONNECTED))
+			{
+				DisconnectAsync();
+				return;
+			}
 
-            _recvEventArgs = null;
-            _sendEventArgs = null;
+			// Not Sending 이 아니라면 전송중인상태임으로 큐에 패킷 쌓음
+			if (false == SendState.IsState(SocketSendState_e.NOT_SENDING))
+			{
+				_sendPackets.Enqueue(packet);
+				return;
+			}
 
-            _socket?.Dispose();
-            _socket = null;
-        }
-    }
+			SendAsync(packet);
+		}
 
-    public class SessionIdAllocate
-    {
-        // 1조
-        private static Int64 m_defaultId = 1000000000000;
-        private static Int64 m_currentAllocId = 0;
+		private void SendAsync(Packet packet = null)
+		{
+			if (false == SocketState.IsState(SocketState_e.CONNECTED))
+			{
+				// 문제가 있음
+				// 커넥트 상태가 아니라고..?
+				DisconnectAsync();
+				return;
+			}
 
-        public static void Init()
-        {
-            m_currentAllocId = 0;
-        }
-        public static Int64 AllocSessionId()
-        {
-            m_currentAllocId += 1;
+			if (packet == null)
+			{
+				if (false == _sendPackets.TryDequeue(out packet))
+				{
+					SendState.ExchangeNotEqual(SocketSendState_e.NOT_SENDING, out var old2State);
+					return;
+				}
+			}
 
-            return m_defaultId + m_currentAllocId;
-        }
-    }
+			// 여기는 packet 이 null 이 아님
+			SendState.ExchangeNotEqual(SocketSendState_e.SENDING, out var oldState);
+			// 복사 및 세팅
+			var bytes = packet.PacketToByteArray();
+			Buffer.BlockCopy(bytes, 0, _sendPacketBuffer, 0, bytes.Length);
+			_sendEventArgs.SetBuffer(0, bytes.Length);
 
-    public class SessionManager : SingleTon<SessionManager>
-    {
-        private Dictionary<Int64 /* SessionId */, Session> _sessionList;
-        private Queue<Session> _sessionQueue;
+			try
+			{
+				bool pending = _socket.SendAsync(_sendEventArgs);
+				if (pending == false)
+				{
+					onSendCompleted(this, _sendEventArgs);
+				}
+			}
+			catch (Exception e)
+			{
+				DisconnectAsync();
+			}
+		}
 
-        private Int64 _sessionId = 0;
+		private void onSendCompleted(object sender, SocketAsyncEventArgs e)
+		{
+			try
+			{
+				// if Receive Size <= 0 , Socket Disconnect!1
+				if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
+				{
+					Session client = (Session)e.UserToken;
 
-        public SessionManager()
-        {
-            _sessionList = new Dictionary<Int64, Session>();
-            _sessionQueue = new Queue<Session>();
-            SessionIdAllocate.Init();
-        }
+					SendAsync();
+					return;
+				}
+				else
+				{
+					DisconnectAsync();
+				}
+			}
+			catch (Exception ex)
+			{
+				_sessionEventHandler?.onInvaliedSent(this, ex);
+				onDisconnectCompleted(this, _disconnectEventArgs);
+			}
+		}
 
-        public void Initalize(int poolSize)
-        {
-            for (int i = 0; i < poolSize; i++)
-            {
-                Session session = new Session();
-                _sessionQueue.Enqueue(session);
-            }
-        }
-    }
+		public void DisconnectAsync()
+		{
+			if (SocketState.IsState(SocketState_e.DISCONNECTED)
+				|| SocketState.IsState(SocketState_e.DISCONNECTING))
+			{
+				return;
+			}
+
+			SocketState.Exchange(SocketState_e.DISCONNECTING);
+			_socket.DisconnectAsync(_disconnectEventArgs);
+		}
+
+		private void onDisconnectCompleted(object sender, SocketAsyncEventArgs e)
+		{
+			SocketState.Exchange(SocketState_e.DISCONNECTED);
+			_sessionEventHandler?.onDisconnected(this);
+			_sessionManager.PushSession(this);
+		}
+
+		public void Close()
+		{
+			_socket?.Close();
+			Dispose();
+		}
+
+		public void Dispose()
+		{
+			SocketState = null;
+			RecvState = null;
+			SendState = null;
+
+			_recvEventArgs?.Dispose();
+			_sendEventArgs?.Dispose();
+
+			_recvEventArgs = null;
+			_sendEventArgs = null;
+
+			_socket?.Dispose();
+			_socket = null;
+		}
+	}
 }

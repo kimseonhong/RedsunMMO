@@ -24,7 +24,7 @@ namespace RedsunLibrary.Network
 		 * -------------------------------
 		 */
 
-		internal class PacketHeader : IDisposable
+		public class PacketHeader : IDisposable
 		{
 			private Packet _packet;
 			private byte[] PacketBuffer => _packet._dataBuffer;
@@ -69,6 +69,7 @@ namespace RedsunLibrary.Network
 			{
 				_packet = packet;
 			}
+
 			public void Dispose()
 			{
 				_packet = null;
@@ -76,7 +77,7 @@ namespace RedsunLibrary.Network
 		}
 
 		private PacketHeader _packetHeader;
-		private byte[] _dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
+		private byte[] _dataBuffer;
 
 		private int TotalPacketSize => PacketConst.PACKET_HEADER_SIZE + _bodySize;
 		private int _bodySize;
@@ -85,19 +86,35 @@ namespace RedsunLibrary.Network
 
 		public Packet(int in_packetId)
 		{
+			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
+
+			_packetHeader = new PacketHeader(this);
 			_packetHeader.PacketProtocolType = in_packetId;
 		}
 
 		public Packet(int in_packetId, byte[] in_body)
 		{
+			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
+
+			_packetHeader = new PacketHeader(this);
 			_packetHeader.PacketProtocolType = in_packetId;
 			SetBody(in_body, 0, in_body.Length);
 		}
 
 		public Packet(int in_packetId, byte[] in_body, int offset, int size)
 		{
+			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
+
+			_packetHeader = new PacketHeader(this);
 			_packetHeader.PacketProtocolType = in_packetId;
 			SetBody(in_body, offset, size);
+		}
+
+		public Packet(byte[] data)
+		{
+			_dataBuffer = data;
+
+			_packetHeader = new PacketHeader(this);
 		}
 
 		public int GetPacketId()
@@ -230,6 +247,13 @@ namespace RedsunLibrary.Network
 
 		public bool ByteArrayToPacket(byte[] in_buffer, int in_offset, int in_size)
 		{
+			// 복사하려는 패킷의 사이즈가 패킷헤더 최소보다 작다면 아직 데이터가 없음
+			if (in_size < PacketConst.PACKET_HEADER_SIZE)
+			{
+				return false;
+			}
+
+			// size 는 토탈 패킷사이즈임, 복사되는 양이랑 이런것들 앞단에서 체크함
 			Buffer.BlockCopy(in_buffer, in_offset, _dataBuffer, 0, in_size);
 
 			int currentBodySize = in_size - PacketConst.PACKET_HEADER_SIZE;

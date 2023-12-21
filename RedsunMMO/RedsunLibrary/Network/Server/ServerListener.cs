@@ -5,74 +5,80 @@ using System.Net.Sockets;
 
 namespace RedsunLibrary.Network.Server
 {
-    public class ServerListener
-    {
-        private RawSocket _acceptSocket;
-        private SocketAsyncEventArgs _acceptArgsEvent;
+	public class ServerListener
+	{
+		public const int DEFAULT_POOL_SIZE = 5000;
+		private RawSocket _acceptSocket;
+		private SocketAsyncEventArgs _acceptArgsEvent;
 
-        public ISessionEventHandler _sessionEventHandler;
+		private SessionManager _sessionManager;
+		private ISessionEventHandler _sessionEventHandler;
 
-        public void StartListener(IPAddress in_ipAddress, Int32 in_port, Int32 in_backLog = 0)
-        {
-            _acceptSocket = new RawSocket();
-            _acceptSocket.Initalize(in_ipAddress, in_port);
-            _acceptSocket.Bind();
-            _acceptSocket.Listen(in_backLog);
+		public ServerListener(ISessionEventHandler sessionEventHandler)
+		{
+			_sessionEventHandler = sessionEventHandler;
+		}
 
-            _acceptArgsEvent = new SocketAsyncEventArgs();
-            _acceptArgsEvent.Completed += new EventHandler<SocketAsyncEventArgs>(onAcceptAsyncCompleted);
+		public void StartListener(IPAddress in_ipAddress, Int32 in_port, Int32 in_backLog = 0)
+		{
+			_acceptSocket = new RawSocket();
+			_acceptSocket.Initalize(in_ipAddress, in_port);
+			_acceptSocket.Bind();
+			_acceptSocket.Listen(in_backLog);
 
-            _AcceptAsync();
-        }
+			_acceptArgsEvent = new SocketAsyncEventArgs();
+			_acceptArgsEvent.Completed += new EventHandler<SocketAsyncEventArgs>(onAcceptAsyncCompleted);
 
-        private void _AcceptAsync()
-        {
-            if (null == _acceptArgsEvent)
-            {
-                return;
-            }
+			_sessionManager = new SessionManager(_sessionEventHandler);
+			_sessionManager.Initalize(DEFAULT_POOL_SIZE);
 
-            _acceptArgsEvent.AcceptSocket = null;
+			_AcceptAsync();
+		}
 
-            bool pending = true;
-            try
-            {
-                pending = _acceptSocket.AcceptAsync(_acceptArgsEvent);
-            }
-            catch (Exception e)
-            {
-                Logger.Print(e.ToString());
-                _AcceptAsync();
-            }
+		private void _AcceptAsync()
+		{
+			if (null == _acceptArgsEvent)
+			{
+				return;
+			}
 
-            if (!pending)
-            {
-                onAcceptAsyncCompleted(this, _acceptArgsEvent);
-            }
-        }
+			_acceptArgsEvent.AcceptSocket = null;
 
-        private void onAcceptAsyncCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            if (null == e)
-            {
-                return;
-            }
+			bool pending = true;
+			try
+			{
+				pending = _acceptSocket.AcceptAsync(_acceptArgsEvent);
+			}
+			catch (Exception e)
+			{
+				Logger.Print(e.ToString());
+				_AcceptAsync();
+			}
 
-            if (SocketError.Success == e.SocketError)
-            {
-                Session tcpSession = TcpSessionManager.it.CreateTcpSession(e.AcceptSocket);
-                tcpSession.onAcceptAsyncProcess(m_simplePacketReceiver.SimplePacketMessageQueue);
+			if (!pending)
+			{
+				onAcceptAsyncCompleted(this, _acceptArgsEvent);
+			}
+		}
 
-                onAcceptAsyncProcess(tcpSession);
-                _AcceptAsync();
-                return;
-            }
-            else
-            {
-                //todo:Accept 실패 처리.
-                Logger.Print("Failed to accept client. " + e.SocketError);
-            }
-            _AcceptAsync();
-        }
-    }
+		private void onAcceptAsyncCompleted(object sender, SocketAsyncEventArgs e)
+		{
+			if (null == e)
+			{
+				return;
+			}
+
+			_AcceptAsync();
+			if (SocketError.Success == e.SocketError)
+			{
+				Session session = _sessionManager.PopSession(e.AcceptSocket);
+				return;
+			}
+			else
+			{
+				//todo:Accept 실패 처리.
+				Logger.Print("Failed to accept client. " + e.SocketError);
+			}
+		}
+	}
 }
