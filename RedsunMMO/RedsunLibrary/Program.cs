@@ -8,6 +8,7 @@ namespace RedsunLibrary
 		public static void Main(string[] args)
 		{
 			Thread t = new Thread(new TestGameLogic().Update);
+			t.Priority = ThreadPriority.Highest;
 			t.Start();
 			Console.ReadKey();
 		}

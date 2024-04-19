@@ -35,6 +35,12 @@ namespace RedsunLibrary.Network.Server
 			_AcceptAsync();
 		}
 
+		public void StopListener()
+		{
+			_acceptArgsEvent.Dispose();
+			_acceptArgsEvent = null;
+		}
+
 		private void _AcceptAsync()
 		{
 			if (null == _acceptArgsEvent)

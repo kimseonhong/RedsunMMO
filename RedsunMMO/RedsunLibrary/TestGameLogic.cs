@@ -9,7 +9,7 @@ namespace RedsunLibrary
 {
 	public class TestGameLogic
 	{
-		public const double FPS = 60.0;
+		public const double FPS = 120.0;
 		public const double SECONDS_PER_FRAME = 1.0 / FPS;
 
 		private int packetFrameCount = 0;
@@ -28,10 +28,11 @@ namespace RedsunLibrary
 			while (true)
 			{
 				double currentTime = sw.Elapsed.TotalSeconds;
-
+				double wait = sw.Elapsed.TotalMilliseconds + SECONDS_PER_FRAME;
 				if (packetQueue.Count <= 0)
 				{
-					Thread.Sleep(1);
+					//Thread.Sleep(1);
+					SpinWait.SpinUntil(() => sw.Elapsed.TotalMilliseconds > wait);
 				}
 				else
 				{

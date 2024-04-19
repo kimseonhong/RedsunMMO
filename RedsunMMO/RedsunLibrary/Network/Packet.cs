@@ -122,6 +122,9 @@ namespace RedsunLibrary.Network
 			return _packetHeader.PacketProtocolType;
 		}
 
+		public bool SetBody(byte[] in_body)
+			=> SetBody(in_body, 0, in_body.Length);
+
 		public bool SetBody(byte[] in_body, int in_offset, int in_size)
 		{
 			// SetBody 할때 모든걸 세팅할까.. 아니면 진짜 Body 넣을까...
