@@ -1,6 +1,7 @@
 ﻿using RedsunLibrary;
 using RedsunLibrary.Network;
 using RedsunLibrary.Network.Server;
+using RedsunLibrary.Network.TCP;
 using RedsunLibrary.Utils;
 using RedsunServer.Protocols;
 using System.Net;
@@ -18,13 +19,13 @@ namespace RedsunServer
 		}
 	}
 
-	public class Server : ServerLogic, ISessionEventHandler
+	public class Server : ServerLogic, ITCPSessionEventHandler
 	{
-		private ServerListener _listener;
+		private TCPServerListener _listener;
 
 		public Server()
 		{
-			_listener = new ServerListener(this);
+			_listener = new TCPServerListener(this);
 		}
 
 		public new void Start()
@@ -56,7 +57,7 @@ namespace RedsunServer
 		}
 
 		#region ISessionEventHandler
-		public bool onConnected(Session sesson)
+		public bool onConnected(TCPSession sesson)
 		{
 			Console.WriteLine("Connected!!");
 			return true;
@@ -68,25 +69,25 @@ namespace RedsunServer
 			return true;
 		}
 
-		public void onDisconnected(Session sesson)
+		public void onDisconnected(TCPSession sesson)
 		{
 			Console.WriteLine("Disconnected");
 		}
 
-		public void onInvaliedReceived(Session sesson, Exception ex = null)
+		public void onInvaliedReceived(TCPSession sesson, Exception ex = null)
 		{
-			Console.WriteLine($"Session ({sesson.SessionId}) InvaliedReceivedMessage:\n{ex.Message} ");
+			Console.WriteLine($"Session ({sesson.GetSessionId()}) InvaliedReceivedMessage:\n{ex.Message} ");
 		}
 
-		public void onInvaliedSent(Session sesson, Exception ex = null)
+		public void onInvaliedSent(TCPSession sesson, Exception ex = null)
 		{
-			Console.WriteLine($"Session ({sesson.SessionId}) InvaliedSentMessage:\n{ex.Message} ");
+			Console.WriteLine($"Session ({sesson.GetSessionId()}) InvaliedSentMessage:\n{ex.Message} ");
 		}
 
-		public void onReceived(Session sesson, Packet packet)
+		public void onReceived(TCPSession sesson, Packet packet)
 		{
 			AddPacket(sesson, packet);
-			Console.WriteLine($"Session ({sesson.SessionId}) Received: {packet.GetPacketId()}");
+			Console.WriteLine($"Session ({sesson.GetSessionId()}) Received: {packet.GetPacketId()}");
 		}
 		#endregion
 	}

@@ -3,33 +3,33 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 
-namespace RedsunLibrary.Network.Server
+namespace RedsunLibrary.Network.TCP
 {
-	public class ServerListener
+	public class TCPServerListener
 	{
 		public const int DEFAULT_POOL_SIZE = 5000;
 		private RawSocket _acceptSocket;
 		private SocketAsyncEventArgs _acceptArgsEvent;
 
-		private SessionManager _sessionManager;
-		private ISessionEventHandler _sessionEventHandler;
+		private TCPSessionManager _sessionManager;
+		private ITCPSessionEventHandler _sessionEventHandler;
 
-		public ServerListener(ISessionEventHandler sessionEventHandler)
+		public TCPServerListener(ITCPSessionEventHandler sessionEventHandler)
 		{
 			_sessionEventHandler = sessionEventHandler;
 		}
 
-		public void StartListener(IPAddress in_ipAddress, Int32 in_port, Int32 in_backLog = 0)
+		public void StartListener(IPAddress ipAddress, Int32 port, Int32 backLog = 0)
 		{
-			_acceptSocket = new RawSocket();
-			_acceptSocket.Initalize(in_ipAddress, in_port);
+			_acceptSocket = new RawSocket(ESocketType.TCP);
+			_acceptSocket.Initalize(ipAddress, port);
 			_acceptSocket.Bind();
-			_acceptSocket.Listen(in_backLog);
+			_acceptSocket.Listen(backLog);
 
 			_acceptArgsEvent = new SocketAsyncEventArgs();
 			_acceptArgsEvent.Completed += new EventHandler<SocketAsyncEventArgs>(onAcceptAsyncCompleted);
 
-			_sessionManager = new SessionManager(_sessionEventHandler);
+			_sessionManager = new TCPSessionManager(_sessionEventHandler);
 			_sessionManager.Initalize(DEFAULT_POOL_SIZE);
 
 			_AcceptAsync();
@@ -39,6 +39,9 @@ namespace RedsunLibrary.Network.Server
 		{
 			_acceptArgsEvent.Dispose();
 			_acceptArgsEvent = null;
+
+			_sessionManager.Dispose();
+			_sessionManager = null;
 		}
 
 		private void _AcceptAsync()
@@ -77,7 +80,7 @@ namespace RedsunLibrary.Network.Server
 			_AcceptAsync();
 			if (SocketError.Success == e.SocketError)
 			{
-				Session session = _sessionManager.PopSession(e.AcceptSocket);
+				TCPSession session = _sessionManager.PopSession(e.AcceptSocket);
 				return;
 			}
 			else

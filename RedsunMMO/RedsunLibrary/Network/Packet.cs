@@ -84,30 +84,30 @@ namespace RedsunLibrary.Network
 
 		public Packet() { }
 
-		public Packet(int in_packetId)
+		public Packet(int packetId)
 		{
 			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
 
 			_packetHeader = new PacketHeader(this);
-			_packetHeader.PacketProtocolType = in_packetId;
+			_packetHeader.PacketProtocolType = packetId;
 		}
 
-		public Packet(int in_packetId, byte[] in_body)
+		public Packet(int packetId, byte[] body)
 		{
 			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
 
 			_packetHeader = new PacketHeader(this);
-			_packetHeader.PacketProtocolType = in_packetId;
-			SetBody(in_body, 0, in_body.Length);
+			_packetHeader.PacketProtocolType = packetId;
+			SetBody(body, 0, body.Length);
 		}
 
-		public Packet(int in_packetId, byte[] in_body, int offset, int size)
+		public Packet(int packetId, byte[] body, int offset, int size)
 		{
 			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
 
 			_packetHeader = new PacketHeader(this);
-			_packetHeader.PacketProtocolType = in_packetId;
-			SetBody(in_body, offset, size);
+			_packetHeader.PacketProtocolType = packetId;
+			SetBody(body, offset, size);
 		}
 
 		public Packet(byte[] data)
@@ -122,16 +122,16 @@ namespace RedsunLibrary.Network
 			return _packetHeader.PacketProtocolType;
 		}
 
-		public bool SetBody(byte[] in_body)
-			=> SetBody(in_body, 0, in_body.Length);
+		public bool SetBody(byte[] body)
+			=> SetBody(body, 0, body.Length);
 
-		public bool SetBody(byte[] in_body, int in_offset, int in_size)
+		public bool SetBody(byte[] body, int offset, int size)
 		{
 			// SetBody 할때 모든걸 세팅할까.. 아니면 진짜 Body 넣을까...
 			// 로직 체크는 다음에
 
-			Buffer.BlockCopy(in_body, in_offset, _dataBuffer, PacketConst.PACKET_BODY_OFFSET, in_size);
-			_bodySize = in_size;
+			Buffer.BlockCopy(body, offset, _dataBuffer, PacketConst.PACKET_BODY_OFFSET, size);
+			_bodySize = size;
 			_packetHeader.PacketTotalSize = (Int16)TotalPacketSize;
 			return true;
 		}
@@ -201,7 +201,7 @@ namespace RedsunLibrary.Network
 		}
 
 		// Packet 데이터 -> byte[] 로 복사
-		public bool PacketToByteArrayy(ref byte[] ref_buffer, int in_startOffset)
+		public bool PacketToByteArrayy(ref byte[] ref_buffer, int startOffset)
 		{
 			// 원본 사이즈를 넣는다. 
 			_packetHeader.PacketOriginalBodySize = (Int16)_bodySize;
@@ -214,7 +214,7 @@ namespace RedsunLibrary.Network
 
 			Console.WriteLine($"OriginalSize: {_packetHeader.PacketOriginalBodySize} | CompressSize: {compress.Length}");
 
-			if (in_startOffset + TotalPacketSize > ref_buffer.Length)
+			if (startOffset + TotalPacketSize > ref_buffer.Length)
 			{
 				return false;
 			}
@@ -222,7 +222,7 @@ namespace RedsunLibrary.Network
 			// BodyCheckSum 부터
 			_MakeBodyCheckSum();
 			_MakeHeaderCheckSum();
-			Buffer.BlockCopy(_dataBuffer, 0, ref_buffer, in_startOffset, TotalPacketSize);
+			Buffer.BlockCopy(_dataBuffer, 0, ref_buffer, startOffset, TotalPacketSize);
 			return true;
 		}
 
@@ -248,18 +248,18 @@ namespace RedsunLibrary.Network
 			return bytes;
 		}
 
-		public bool ByteArrayToPacket(byte[] in_buffer, int in_offset, int in_size)
+		public bool ByteArrayToPacket(byte[] buffer, int offset, int size)
 		{
 			// 복사하려는 패킷의 사이즈가 패킷헤더 최소보다 작다면 아직 데이터가 없음
-			if (in_size < PacketConst.PACKET_HEADER_SIZE)
+			if (size < PacketConst.PACKET_HEADER_SIZE)
 			{
 				return false;
 			}
 
 			// size 는 토탈 패킷사이즈임, 복사되는 양이랑 이런것들 앞단에서 체크함
-			Buffer.BlockCopy(in_buffer, in_offset, _dataBuffer, 0, in_size);
+			Buffer.BlockCopy(buffer, offset, _dataBuffer, 0, size);
 
-			int currentBodySize = in_size - PacketConst.PACKET_HEADER_SIZE;
+			int currentBodySize = size - PacketConst.PACKET_HEADER_SIZE;
 			int originalBodySize = _packetHeader.PacketOriginalBodySize;
 			var compress = LZ4Compress.LZ4CodecDecode(_dataBuffer, PacketConst.PACKET_BODY_OFFSET, currentBodySize, originalBodySize);
 			if (false == SetBody(compress, 0, compress.Length))

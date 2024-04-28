@@ -1,6 +1,6 @@
 ﻿using Google.Protobuf;
 using RedsunLibrary.Network;
-using RedsunLibrary.Network.Server;
+using RedsunLibrary.Network.TCP;
 using RedsunLibrary.Utils;
 
 namespace RedsunServer.ServerUtils
@@ -10,7 +10,7 @@ namespace RedsunServer.ServerUtils
 		where ACK_MSG : Google.Protobuf.IMessage, new()
 	{
 		protected ServerResult _result;
-		protected Session _session;
+		protected TCPSession _session;
 		protected Packet _packet;
 
 		protected Int32 _reqPacketId;
@@ -25,7 +25,7 @@ namespace RedsunServer.ServerUtils
 		public MessageProcessor(PacketMessage packet, Int32 reqPacketId, Int32 ackPacketId)
 		{
 			_result = new ServerResult();
-			_session = packet.Session;
+			_session = (TCPSession)packet.Session;
 			_packet = packet.Packet;
 
 			_reqPacketId = reqPacketId;
@@ -108,7 +108,7 @@ namespace RedsunServer.ServerUtils
 
 		public void Send()
 		{
-			_session.Send(MakePacket());
+			_session.SendAsync(MakePacket());
 		}
 	}
 }

@@ -25,13 +25,13 @@ namespace RedsunLibrary.Network
 			return _offset - _consumedOffset;
 		}
 
-		public void ReceiveProcess(byte[] in_buffer, Int32 in_recvCount)
+		public void ReceiveProcess(byte[] buffer, Int32 recvCount)
 		{
 			lock (_lockObj)
 			{
 				try
 				{
-					if (_offset + in_recvCount >= PacketConst.MAX_PACKET_BUFFER_SIZE)
+					if (_offset + recvCount >= PacketConst.MAX_PACKET_BUFFER_SIZE)
 					{
 						Int32 receivedLength = GetReceivedLength();
 						Buffer.BlockCopy(_buffer, _consumedOffset, _buffer, 0, receivedLength);
@@ -40,8 +40,8 @@ namespace RedsunLibrary.Network
 						_consumedOffset = 0;
 					}
 
-					Buffer.BlockCopy(in_buffer, 0, _buffer, _offset, in_recvCount);
-					_offset += in_recvCount;
+					Buffer.BlockCopy(buffer, 0, _buffer, _offset, recvCount);
+					_offset += recvCount;
 					return;
 				}
 				catch (Exception ex)

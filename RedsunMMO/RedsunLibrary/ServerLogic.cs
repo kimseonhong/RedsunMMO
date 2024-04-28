@@ -1,5 +1,6 @@
 ﻿using RedsunLibrary.Network;
 using RedsunLibrary.Network.Server;
+using RedsunLibrary.Network.TCP;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -112,7 +113,7 @@ namespace RedsunLibrary
 			return packets;
 		}
 
-		public void AddPacket(Session session, Packet packet)
+		public void AddPacket(ISession session, Packet packet)
 		{
 			if (false == _isRunning)
 				return;

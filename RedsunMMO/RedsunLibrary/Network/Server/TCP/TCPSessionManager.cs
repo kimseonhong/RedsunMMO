@@ -5,9 +5,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RedsunLibrary.Network.Server
+namespace RedsunLibrary.Network.TCP
 {
-	public class SessionManager
+	public class TCPSessionManager : IDisposable
 	{
 		class SessionIdAllocate
 		{
@@ -33,19 +33,19 @@ namespace RedsunLibrary.Network.Server
 		private bool _flexible = false; // true 라면 유연하게(세션을 다 사용중이더라도 새로 생성할 수 있음), false 라면 강력하게(세션 다 사용하면 끝)
 		private SessionIdAllocate _sessionIdAllocate;
 
-		private Dictionary<Int64 /* SessionId */, Session> _sessionList;
-		private Queue<Session> _sessionQueue;
+		private Dictionary<Int64 /* SessionId */, TCPSession> _sessionList;
+		private Queue<TCPSession> _sessionQueue;
 
-		private ISessionEventHandler _sessionEventHandler;
+		private ITCPSessionEventHandler _sessionEventHandler;
 
-		public SessionManager(ISessionEventHandler sessionEventHandler, bool flexible = false)
+		public TCPSessionManager(ITCPSessionEventHandler sessionEventHandler, bool flexible = false)
 		{
 			_lockObj = new object();
 			_flexible = flexible;
 			_sessionIdAllocate = new SessionIdAllocate();
 
-			_sessionList = new Dictionary<Int64, Session>();
-			_sessionQueue = new Queue<Session>();
+			_sessionList = new Dictionary<Int64, TCPSession>();
+			_sessionQueue = new Queue<TCPSession>();
 			_sessionEventHandler = sessionEventHandler;
 		}
 
@@ -53,14 +53,14 @@ namespace RedsunLibrary.Network.Server
 		{
 			for (int i = 0; i < poolSize; i++)
 			{
-				Session session = new Session(this, _sessionEventHandler);
+				TCPSession session = new TCPSession(this, _sessionEventHandler);
 				_sessionQueue.Enqueue(session);
 			}
 		}
 
-		public Session PopSession(Socket socket)
+		public TCPSession PopSession(Socket socket)
 		{
-			Session session;
+			TCPSession session;
 
 			lock (_lockObj)
 			{
@@ -69,10 +69,10 @@ namespace RedsunLibrary.Network.Server
 				{
 					if (_flexible == false)
 					{
-						_sessionEventHandler.onConnectFailed("Full Connection");
+						_sessionEventHandler.onConnectFailed(0, "Full Connection");
 						return null;
 					}
-					session = new Session(this, _sessionEventHandler);
+					session = new TCPSession(this, _sessionEventHandler);
 				}
 				else
 				{
@@ -86,14 +86,31 @@ namespace RedsunLibrary.Network.Server
 			return session;
 		}
 
-		public void PushSession(Session session)
+		public void PushSession(TCPSession session)
 		{
 			lock (_lockObj)
 			{
-				_sessionList.Remove(session.SessionId);
+				_sessionList.Remove(session.GetSessionId());
 				_sessionQueue.Enqueue(session);
 			}
 			return;
+		}
+
+		public void Dispose()
+		{
+			foreach (var data in _sessionList)
+			{
+				data.Value.Dispose();
+			}
+			_sessionList.Clear();
+			_sessionList = null;
+
+			foreach (var data in _sessionQueue)
+			{
+				data.Dispose();
+			}
+			_sessionQueue.Clear();
+			_sessionQueue = null;
 		}
 	}
 }
