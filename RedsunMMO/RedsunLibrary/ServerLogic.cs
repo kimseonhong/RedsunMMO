@@ -1,6 +1,7 @@
 ﻿using RedsunLibrary.Network;
 using RedsunLibrary.Network.Server;
 using RedsunLibrary.Network.TCP;
+using RedsunLibrary.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -52,46 +53,112 @@ namespace RedsunLibrary
 			_packetQueue = null;
 		}
 
+		//private void _Update()
+		//{
+		//	Stopwatch sw = new Stopwatch();
+		//	sw.Start();
+		//
+		//	double lastUpdateTime = 0;
+		//
+		//	while (_isRunning)
+		//	{
+		//		double currentTime = sw.Elapsed.TotalSeconds;
+		//		double wait = sw.Elapsed.TotalMilliseconds + SECONDS_PER_FRAME;
+		//		if (_packetQueue.Count <= 0)
+		//		{
+		//			//Thread.Sleep(1);
+		//			SpinWait.SpinUntil(() => sw.Elapsed.TotalMilliseconds > wait);
+		//		}
+		//		else
+		//		{
+		//			var packets = GetPackets(in_size: 60);
+		//			foreach (var packet in packets)
+		//			{
+		//				PacketProcessor(packet);
+		//			}
+		//		}
+		//
+		//		_packetFrameCount++;
+		//		if (currentTime - lastUpdateTime > SECONDS_PER_FRAME)
+		//		{
+		//			GameLogicUpdate();
+		//			lastUpdateTime = currentTime;
+		//
+		//			_frameCount++;
+		//			if (currentTime - _lastFPSCheckTime >= 1.0)
+		//			{
+		//				Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
+		//				_packetFrameCount = 0;
+		//				_frameCount = 0;
+		//				_lastFPSCheckTime = currentTime;
+		//			}
+		//		}
+		//	}
+		//}
+
 		private void _Update()
 		{
 			Stopwatch sw = new Stopwatch();
 			sw.Start();
 
-			double lastUpdateTime = 0;
+			double nextGameLogicTime = 0;  // 다음 게임 로직 업데이트 시간
 
 			while (_isRunning)
 			{
 				double currentTime = sw.Elapsed.TotalSeconds;
-				double wait = sw.Elapsed.TotalMilliseconds + SECONDS_PER_FRAME;
-				if (_packetQueue.Count <= 0)
+
+				// 게임 로직 업데이트 (60 FPS)
+				if (currentTime >= nextGameLogicTime)
 				{
-					//Thread.Sleep(1);
-					SpinWait.SpinUntil(() => sw.Elapsed.TotalMilliseconds > wait);
+					GameLogicUpdate();
+					nextGameLogicTime = currentTime + SECONDS_PER_FRAME;
+					_frameCount++;
+				}
+
+				// 패킷 처리 (가능한 한 자주)
+				if (_packetQueue.Count > 0)
+				{
+					ProcessPackets();
 				}
 				else
 				{
-					var packets = GetPackets(in_size: 60);
-					foreach (var packet in packets)
+					double waitTime = nextGameLogicTime - currentTime;
+					if (waitTime > 0)
 					{
-						PacketProcessor(packet);
+						PreciseWait(waitTime);
 					}
 				}
-
 				_packetFrameCount++;
-				if (currentTime - lastUpdateTime > SECONDS_PER_FRAME)
-				{
-					GameLogicUpdate();
-					lastUpdateTime = currentTime;
 
-					_frameCount++;
-					if (currentTime - _lastFPSCheckTime >= 1.0)
-					{
-						Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
-						_packetFrameCount = 0;
-						_frameCount = 0;
-						_lastFPSCheckTime = currentTime;
-					}
+				if (currentTime - _lastFPSCheckTime >= 1.0)
+				{
+					Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
+					_frameCount = 0;
+					_packetFrameCount = 0;
+					_lastFPSCheckTime = currentTime;
 				}
+			}
+		}
+		private void PreciseWait(double waitTimeInSeconds)
+		{
+			//if (waitTimeInSeconds >= 0.015)
+			//{
+			//	//int w = (int)(waitTimeInSeconds % 0.015 * 1000);
+			//	int w = (int)(waitTimeInSeconds * 1000 - 12);
+			//	Thread.Sleep(w);
+			//	return;
+			//}
+
+			var until = Stopwatch.GetTimestamp() + Stopwatch.Frequency * waitTimeInSeconds;
+			while (Stopwatch.GetTimestamp() < until) ;
+		}
+
+		private void ProcessPackets()
+		{
+			var packets = GetPackets(in_size: 60);
+			foreach (var packet in packets)
+			{
+				PacketProcessor(packet);
 			}
 		}
 
