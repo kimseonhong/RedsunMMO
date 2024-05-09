@@ -19,7 +19,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(short)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(short));
 				Array.Reverse(tmp);
-				return BitConverter.ToInt16(tmp, startOffset);
+				return BitConverter.ToInt16(tmp, 0);
 			}
 			return BitConverter.ToInt16(buffer, startOffset);
 		}
@@ -30,7 +30,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(ushort)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(ushort));
 				Array.Reverse(tmp);
-				return BitConverter.ToUInt16(tmp, startOffset);
+				return BitConverter.ToUInt16(tmp, 0);
 			}
 			return BitConverter.ToUInt16(buffer, startOffset);
 		}
@@ -41,7 +41,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(int)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(int));
 				Array.Reverse(tmp);
-				return BitConverter.ToInt32(tmp, startOffset);
+				return BitConverter.ToInt32(tmp, 0);
 			}
 			return BitConverter.ToInt32(buffer, startOffset);
 		}
@@ -52,7 +52,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(uint)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(uint));
 				Array.Reverse(tmp);
-				return BitConverter.ToUInt32(tmp, startOffset);
+				return BitConverter.ToUInt32(tmp, 0);
 			}
 			return BitConverter.ToUInt32(buffer, startOffset);
 		}
@@ -63,7 +63,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(long)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(long));
 				Array.Reverse(tmp);
-				return BitConverter.ToInt64(tmp, startOffset);
+				return BitConverter.ToInt64(tmp, 0);
 			}
 			return BitConverter.ToInt64(buffer, startOffset);
 		}
@@ -74,7 +74,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(ulong)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(ulong));
 				Array.Reverse(tmp);
-				return BitConverter.ToUInt64(tmp, startOffset);
+				return BitConverter.ToUInt64(tmp, 0);
 			}
 			return BitConverter.ToUInt64(buffer, startOffset);
 		}
@@ -85,7 +85,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(float)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(float));
 				Array.Reverse(tmp);
-				return BitConverter.ToSingle(tmp, startOffset);
+				return BitConverter.ToSingle(tmp, 0);
 			}
 			return BitConverter.ToSingle(buffer, startOffset);
 		}
@@ -96,7 +96,7 @@ namespace RedsunLibrary.Utils
 				byte[] tmp = new byte[sizeof(double)];
 				Buffer.BlockCopy(buffer, startOffset, tmp, 0, sizeof(double));
 				Array.Reverse(tmp);
-				return BitConverter.ToDouble(tmp, startOffset);
+				return BitConverter.ToDouble(tmp, 0);
 			}
 			return BitConverter.ToDouble(buffer, startOffset);
 		}

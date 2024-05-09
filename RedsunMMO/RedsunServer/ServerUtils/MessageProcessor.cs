@@ -89,18 +89,21 @@ namespace RedsunServer.ServerUtils
 
 		public Packet MakePacket()
 		{
-			Packet packet = new Packet(_ackPacketId);
+			Packet packet;
 			if (_result.IsFail())
 			{
+				packet = new Packet((int)EPacketProtocol.ScErrorAck);
 				var error = new SCErrorAck()
 				{
 					SourceProtocol = (EPacketProtocol)_reqPacketId,
 					ErrorCode = _result.ResultCode,
 				};
+
 				packet.SetBody(error.ToByteArray());
 			}
 			else
 			{
+				packet = new Packet(_ackPacketId);
 				packet.SetBody(AckMsg.ToByteArray());
 			}
 			return packet;

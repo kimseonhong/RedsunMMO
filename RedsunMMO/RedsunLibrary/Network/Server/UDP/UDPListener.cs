@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 
 namespace RedsunLibrary.Network.UDP
@@ -21,11 +22,11 @@ namespace RedsunLibrary.Network.UDP
 		{
 			_endPoint = new IPEndPoint(address, port);
 
-			_session = new UDPSession(_endPoint, _sessionManager, _sessionEventHandler);
-			_session.Bind();
-
 			_sessionManager = new UDPSessionManager(_sessionEventHandler);
-			_sessionManager.Initalize(DEFAULT_POOL_SIZE);
+			_session = new UDPSession(_endPoint, _sessionManager, _sessionEventHandler);
+
+			_sessionManager.Initalize(_session, DEFAULT_POOL_SIZE);
+			_session.Bind();
 
 			// 시작
 			_session.ReceiveAsync();
@@ -34,7 +35,28 @@ namespace RedsunLibrary.Network.UDP
 		public void Connect(string host, Int32 port)
 		{
 			IPAddress[] addresses = Dns.GetHostAddresses(host);
-			_session.Connect(new IPEndPoint(addresses[0], port));
+
+			_endPoint = new IPEndPoint(addresses[0], port);
+
+			_session = new UDPSession(_endPoint, _sessionManager, _sessionEventHandler);
+			_session.Connect((IPEndPoint)_endPoint);
+
+			// 시작
+			_session.ReceiveAsync();
+		}
+
+		public void SendToClientAll(Packet packet)
+		{
+			foreach (var session in _sessionManager.GetConnectUDPSessions())
+			{
+				session.Value.SendAsync(packet);
+				//_session.SendAsync(packet, session.Value.EndPoint);
+			}
+		}
+
+		public void SendToServer(Packet packet)
+		{
+			_session.SendAsync(packet);
 		}
 
 		public void StopListener()

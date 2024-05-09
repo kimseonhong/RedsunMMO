@@ -38,6 +38,7 @@ namespace RedsunLibrary.Network.UDP
 		private Dictionary<Int64 /* SessionId */, UDPSession> _sessionList;
 		private Queue<UDPSession> _sessionQueue;
 
+		private UDPSession _listenerSession;
 		private IUDPSessionEventHandler _sessionEventHandler;
 
 		public UDPSessionManager(IUDPSessionEventHandler sessionEventHandler, bool flexible = false)
@@ -49,14 +50,16 @@ namespace RedsunLibrary.Network.UDP
 			_sessionIdToEndPoint = new Dictionary<EndPoint, UDPSession>();
 			_sessionList = new Dictionary<Int64, UDPSession>();
 			_sessionQueue = new Queue<UDPSession>();
+
 			_sessionEventHandler = sessionEventHandler;
 		}
 
-		public void Initalize(int poolSize)
+		public void Initalize(UDPSession listenerSession, int poolSize)
 		{
+			_listenerSession = listenerSession;
 			for (int i = 0; i < poolSize; i++)
 			{
-				UDPSession session = new UDPSession(null, this, _sessionEventHandler);
+				UDPSession session = new UDPSession(_listenerSession, this, _sessionEventHandler);
 				_sessionQueue.Enqueue(session);
 			}
 		}
@@ -84,7 +87,7 @@ namespace RedsunLibrary.Network.UDP
 						_sessionEventHandler.onConnectFailed(0, "Full Connection");
 						return null;
 					}
-					session = new UDPSession(endpoint, this, _sessionEventHandler);
+					session = new UDPSession(_listenerSession, this, _sessionEventHandler);
 				}
 				else
 				{
@@ -108,6 +111,11 @@ namespace RedsunLibrary.Network.UDP
 				_sessionQueue.Enqueue(session);
 			}
 			return;
+		}
+
+		public Dictionary<Int64, UDPSession> GetConnectUDPSessions()
+		{
+			return _sessionList;
 		}
 
 		public void Dispose()

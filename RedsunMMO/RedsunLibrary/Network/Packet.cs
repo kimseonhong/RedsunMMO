@@ -82,7 +82,12 @@ namespace RedsunLibrary.Network
 		private int TotalPacketSize => PacketConst.PACKET_HEADER_SIZE + _bodySize;
 		private int _bodySize;
 
-		public Packet() { }
+		public Packet()
+		{
+			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
+
+			_packetHeader = new PacketHeader(this);
+		}
 
 		public Packet(int packetId)
 		{
@@ -212,7 +217,7 @@ namespace RedsunLibrary.Network
 				return false;
 			}
 
-			Console.WriteLine($"OriginalSize: {_packetHeader.PacketOriginalBodySize} | CompressSize: {compress.Length}");
+			//Console.WriteLine($"OriginalSize: {_packetHeader.PacketOriginalBodySize} | CompressSize: {compress.Length}");
 
 			if (startOffset + TotalPacketSize > ref_buffer.Length)
 			{
@@ -237,7 +242,7 @@ namespace RedsunLibrary.Network
 				return null;
 			}
 
-			Console.WriteLine($"OriginalSize: {_packetHeader.PacketOriginalBodySize} | CompressSize: {compress.Length}");
+			//Console.WriteLine($"OriginalSize: {_packetHeader.PacketOriginalBodySize} | CompressSize: {compress.Length}");
 
 			// BodyCheckSum 부터
 			_MakeBodyCheckSum();
@@ -259,23 +264,28 @@ namespace RedsunLibrary.Network
 			// size 는 토탈 패킷사이즈임, 복사되는 양이랑 이런것들 앞단에서 체크함
 			Buffer.BlockCopy(buffer, offset, _dataBuffer, 0, size);
 
+			// 일단 헤더부터 체크
+			if (false == IsValidHeader())
+			{
+				return false;
+			}
+
 			int currentBodySize = size - PacketConst.PACKET_HEADER_SIZE;
 			int originalBodySize = _packetHeader.PacketOriginalBodySize;
+
+			_bodySize = currentBodySize;
+			if (false == IsValidBody())
+			{
+				return false;
+			}
+
+			// 디코딩은 제일 마지막
 			var compress = LZ4Compress.LZ4CodecDecode(_dataBuffer, PacketConst.PACKET_BODY_OFFSET, currentBodySize, originalBodySize);
 			if (false == SetBody(compress, 0, compress.Length))
 			{
 				return false;
 			}
 
-			if (false == IsValidHeader())
-			{
-				return false;
-			}
-
-			if (false == IsValidBody())
-			{
-				return false;
-			}
 			return true;
 		}
 
