@@ -25,10 +25,14 @@ namespace RedsunLibrary
 		private ConcurrentQueue<PacketMessage> _packetQueue;
 		private Thread _runningThread;
 
-		public ServerLogic(double fps = DEFAULT_FPS)
+		private bool _useThreadSleep = false;
+
+		public ServerLogic(double fps = DEFAULT_FPS, bool useThreadSleep = false)
 		{
 			FPS = fps;
 			SECONDS_PER_FRAME = 1.0 / FPS;
+
+			_useThreadSleep = useThreadSleep;
 
 			_packetQueue = new ConcurrentQueue<PacketMessage>();
 			_runningThread = new Thread(_Update)
@@ -148,6 +152,13 @@ namespace RedsunLibrary
 			//	Thread.Sleep(w);
 			//	return;
 			//}
+
+			if (_useThreadSleep)
+			{
+				int w = (int)(waitTimeInSeconds * 1000);
+				Thread.Sleep(w);
+				return;
+			}
 
 			var until = Stopwatch.GetTimestamp() + Stopwatch.Frequency * waitTimeInSeconds;
 			while (Stopwatch.GetTimestamp() < until) ;

@@ -96,6 +96,11 @@ namespace RedsunLibrary.Network.TCP
 			return;
 		}
 
+		public Dictionary<Int64, TCPSession> GetConnectTCPSessions()
+		{
+			return _sessionList;
+		}
+
 		public void Dispose()
 		{
 			foreach (var data in _sessionList)

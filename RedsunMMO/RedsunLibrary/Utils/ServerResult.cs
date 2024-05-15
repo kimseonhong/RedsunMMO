@@ -21,6 +21,8 @@ namespace RedsunLibrary.Utils
 
 		public static ServerResult alloc() => new ServerResult();
 
+
+		public EResultType ResultType => _resultType;
 		public Int32 ResultCode => _resultCode;
 
 		public ServerResult()

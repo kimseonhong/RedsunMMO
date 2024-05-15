@@ -158,6 +158,14 @@ namespace RedsunLibrary.Network.TCP
 			}
 		}
 
+		public void SendAllAsync(Packet packet)
+		{
+			foreach (var session in _sessionManager.GetConnectTCPSessions())
+			{
+				session.Value.SendAsync(packet);
+			}
+		}
+
 		public void SendAsync(Packet packet)
 		{
 			// Connected 가 아니라고? 
