@@ -116,7 +116,7 @@ namespace RedsunLibrary.Network.UDP
 
 			if (false == pending)
 			{
-				ReceiveAsync(pendingCount++);
+				onReceiveCompleted(_socket, _recvEventArgs);
 			}
 		}
 
@@ -172,7 +172,7 @@ namespace RedsunLibrary.Network.UDP
 			_SendAsync(packet, endPoint);
 		}
 
-		public void SendAsync(Packet packet)
+		public void Send(Packet packet)
 		{
 			if (_listenerSession != null)
 			{

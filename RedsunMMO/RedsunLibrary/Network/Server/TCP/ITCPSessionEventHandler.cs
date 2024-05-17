@@ -11,4 +11,14 @@ namespace RedsunLibrary.Network.TCP
 		void onInvaliedReceived(TCPSession sesson, Exception ex = null);
 		void onInvaliedSent(TCPSession sesson, Exception ex = null);
 	}
+
+	public interface ITCPConnectorEventHandler
+	{
+		bool onConnected();
+		bool onConnectFailed(string reason);
+		void onDisconnected();
+		void onReceived(Packet packet);
+		void onInvaliedReceived(Exception ex = null);
+		void onInvaliedSent(Exception ex = null);
+	}
 }

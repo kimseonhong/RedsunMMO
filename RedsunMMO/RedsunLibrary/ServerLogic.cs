@@ -136,7 +136,7 @@ namespace RedsunLibrary
 
 				if (currentTime - _lastFPSCheckTime >= 1.0)
 				{
-					Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
+					//Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
 					_frameCount = 0;
 					_packetFrameCount = 0;
 					_lastFPSCheckTime = currentTime;

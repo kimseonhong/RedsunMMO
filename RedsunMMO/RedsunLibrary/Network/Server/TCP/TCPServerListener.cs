@@ -77,17 +77,16 @@ namespace RedsunLibrary.Network.TCP
 				return;
 			}
 
-			_AcceptAsync();
 			if (SocketError.Success == e.SocketError)
 			{
 				TCPSession session = _sessionManager.PopSession(e.AcceptSocket);
-				return;
 			}
 			else
 			{
 				//todo:Accept 실패 처리.
 				Logger.Print("Failed to accept client. " + e.SocketError);
 			}
+			_AcceptAsync();
 		}
 	}
 }

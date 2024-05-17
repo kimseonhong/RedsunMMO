@@ -49,14 +49,14 @@ namespace RedsunLibrary.Network.UDP
 		{
 			foreach (var session in _sessionManager.GetConnectUDPSessions())
 			{
-				session.Value.SendAsync(packet);
+				session.Value.Send(packet);
 				//_session.SendAsync(packet, session.Value.EndPoint);
 			}
 		}
 
 		public void SendToServer(Packet packet)
 		{
-			_session.SendAsync(packet);
+			_session.Send(packet);
 		}
 
 		public void StopListener()

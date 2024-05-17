@@ -9,7 +9,7 @@ using System.Net.Sockets;
 
 namespace RedsunLibrary.Network.TCP
 {
-	public class TCPSession : ISession
+	public class TCPConnector : ISession
 	{
 		public SyncState<SocketState_e> SocketState;
 		public SyncState<SocketRecvState_e> RecvState;
@@ -19,12 +19,12 @@ namespace RedsunLibrary.Network.TCP
 		private RawSocket _socket;
 		private PacketProcessor _packetProcessor;
 
+		private SocketAsyncEventArgs _connectEventArgs;
 		private SocketAsyncEventArgs _recvEventArgs;
 		private SocketAsyncEventArgs _sendEventArgs;
 		private SocketAsyncEventArgs _disconnectEventArgs;
 
-		private TCPSessionManager _sessionManager;
-		private ITCPSessionEventHandler _sessionEventHandler;
+		private ITCPConnectorEventHandler _sessionEventHandler;
 
 		private byte[] _recvPacketBuffer;
 		private byte[] _sendPacketBuffer;
@@ -32,13 +32,7 @@ namespace RedsunLibrary.Network.TCP
 
 		public Int64 GetSessionId() => _sessionId;
 
-		public TCPSession(TCPSessionManager sm, ITCPSessionEventHandler sessionEventHandler)
-			: this(sessionEventHandler)
-		{
-			_sessionManager = sm;
-		}
-
-		public TCPSession(ITCPSessionEventHandler sessionEventHandler)
+		public TCPConnector(ITCPConnectorEventHandler sessionEventHandler)
 		{
 			SocketState = new SyncState<SocketState_e>(SocketState_e.NOT_CONNECTED);
 			RecvState = new SyncState<SocketRecvState_e>(SocketRecvState_e.NOT_RECEIVING);
@@ -47,6 +41,10 @@ namespace RedsunLibrary.Network.TCP
 			_sessionId = 0;
 			_socket = new RawSocket(ESocketType.TCP);
 			_packetProcessor = new PacketProcessor();
+
+			_connectEventArgs = new SocketAsyncEventArgs();
+			_connectEventArgs.UserToken = this;
+			_connectEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onConnectCompleted);
 
 			_recvPacketBuffer = new byte[PacketConst.TCP_RECV_BUFFER_SIZE];
 			_sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
@@ -69,22 +67,54 @@ namespace RedsunLibrary.Network.TCP
 			_sessionEventHandler = sessionEventHandler;
 		}
 
-		public void AcceptAsyncProcess(Int64 sessionId, Socket socket)
+		public void Connect(EndPoint endPoint)
 		{
-			_sessionId = sessionId;
-			_socket = new RawSocket(ESocketType.TCP, socket);
-
-			if (false == SocketState.ExchangeNotEqual(SocketState_e.CONNECTED, out var out_oldState))
+			if (false == SocketState.IsState(SocketState_e.NOT_CONNECTED))
 			{
-				Logger.Print("Alreay Connected Session");
-				_sessionEventHandler?.onConnectFailed(sessionId, "Alreay Connected Session");
+				Logger.Print("Alreay Connected");
+				_sessionEventHandler?.onConnectFailed("Alreay Connected");
 				DisconnectAsync();
 				return;
 			}
 
-			_sessionEventHandler?.onConnected(this);
-			ReceiveAsync();
-			RecvState.Exchange(SocketRecvState_e.RECEIVING);
+			bool pending = true;
+			try
+			{
+				_connectEventArgs.RemoteEndPoint = endPoint;
+				SocketState.ExchangeNotEqual(SocketState_e.CONNECTING, out _);
+				pending = _socket.ConnectAsync(_connectEventArgs);
+			}
+			catch (Exception e)
+			{
+				Logger.Print(e.ToString());
+			}
+
+			if (false == pending)
+			{
+				onConnectCompleted(this, _connectEventArgs);
+			}
+		}
+
+		public void onConnectCompleted(object sender, SocketAsyncEventArgs e)
+		{
+			if (null == e)
+			{
+				SocketState.ExchangeNotEqual(SocketState_e.NOT_CONNECTED, out _);
+				return;
+			}
+
+			if (SocketError.Success == e.SocketError)
+			{
+				SocketState.ExchangeNotEqual(SocketState_e.CONNECTED, out _);
+				RecvState.Exchange(SocketRecvState_e.RECEIVING);
+				ReceiveAsync();
+
+				_sessionEventHandler?.onConnected();
+			}
+			else
+			{
+				_sessionEventHandler?.onConnectFailed($"{e.SocketError}");
+			}
 		}
 
 		public void ReceiveAsync(int pendingCount = 0)
@@ -128,8 +158,6 @@ namespace RedsunLibrary.Network.TCP
 				// if Receive Size <= 0 , Socket Disconnect!1
 				if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
 				{
-					TCPSession client = (TCPSession)e.UserToken;
-
 					_packetProcessor.ReceiveProcess(e.Buffer, e.BytesTransferred);
 
 					// 패킷 꺼내와야지.
@@ -141,7 +169,7 @@ namespace RedsunLibrary.Network.TCP
 							break;
 						}
 
-						_sessionEventHandler?.onReceived(this, packet);
+						_sessionEventHandler?.onReceived(packet);
 					}
 
 					ReceiveAsync();
@@ -154,16 +182,8 @@ namespace RedsunLibrary.Network.TCP
 			}
 			catch (Exception ex)
 			{
-				_sessionEventHandler?.onInvaliedReceived(this, ex);
+				_sessionEventHandler?.onInvaliedReceived(ex);
 				onDisconnectCompleted(this, _disconnectEventArgs);
-			}
-		}
-
-		public void SendAll(Packet packet)
-		{
-			foreach (var session in _sessionManager.GetConnectTCPSessions())
-			{
-				session.Value.Send(packet);
 			}
 		}
 
@@ -233,8 +253,6 @@ namespace RedsunLibrary.Network.TCP
 				// if Receive Size <= 0 , Socket Disconnect!1
 				if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
 				{
-					TCPSession client = (TCPSession)e.UserToken;
-
 					_Send();
 					return;
 				}
@@ -245,7 +263,7 @@ namespace RedsunLibrary.Network.TCP
 			}
 			catch (Exception ex)
 			{
-				_sessionEventHandler?.onInvaliedSent(this, ex);
+				_sessionEventHandler?.onInvaliedSent(ex);
 				onDisconnectCompleted(this, _disconnectEventArgs);
 			}
 		}
@@ -265,8 +283,7 @@ namespace RedsunLibrary.Network.TCP
 		private void onDisconnectCompleted(object sender, SocketAsyncEventArgs e)
 		{
 			SocketState.Exchange(SocketState_e.DISCONNECTED);
-			_sessionEventHandler?.onDisconnected(GetSessionId());
-			_sessionManager.PushSession(this);
+			_sessionEventHandler?.onDisconnected();
 		}
 
 		public void Close()

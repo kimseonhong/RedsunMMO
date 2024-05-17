@@ -49,8 +49,11 @@ namespace RedsunLibrary.Network
 			_socketType = socketType;
 
 			var endPoint = (IPEndPoint)_socket.RemoteEndPoint;
-			_ipAddress = endPoint.Address;
-			_port = endPoint.Port;
+			if (endPoint != null)
+			{
+				_ipAddress = endPoint.Address;
+				_port = endPoint.Port;
+			}
 		}
 
 		public void Initalize(IPAddress ipAddress, Int32 port)

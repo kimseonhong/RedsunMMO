@@ -82,6 +82,8 @@ namespace RedsunLibrary.Network
 		private int TotalPacketSize => PacketConst.PACKET_HEADER_SIZE + _bodySize;
 		private int _bodySize;
 
+		private bool _isAlreadyPacketToByteArray = false;
+		private byte[] _packetByteArray;
 		public Packet()
 		{
 			_dataBuffer = new byte[PacketConst.MAX_PACKET_SIZE];
@@ -233,6 +235,12 @@ namespace RedsunLibrary.Network
 
 		public byte[] PacketToByteArray()
 		{
+			// 패킷을 byte 로 바꿨으면 재활용가능하도록 한다.
+			if (_isAlreadyPacketToByteArray)
+			{
+				return _packetByteArray;
+			}
+
 			// 원본 사이즈를 넣는다. 
 			_packetHeader.PacketOriginalBodySize = (Int16)_bodySize;
 
@@ -248,9 +256,10 @@ namespace RedsunLibrary.Network
 			_MakeBodyCheckSum();
 			_MakeHeaderCheckSum();
 
-			byte[] bytes = new byte[TotalPacketSize];
-			Buffer.BlockCopy(_dataBuffer, 0, bytes, 0, TotalPacketSize);
-			return bytes;
+			_isAlreadyPacketToByteArray = true;
+			_packetByteArray = new byte[TotalPacketSize];
+			Buffer.BlockCopy(_dataBuffer, 0, _packetByteArray, 0, TotalPacketSize);
+			return _packetByteArray;
 		}
 
 		public bool ByteArrayToPacket(byte[] buffer, int offset, int size)

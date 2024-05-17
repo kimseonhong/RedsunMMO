@@ -83,7 +83,7 @@ namespace RedsunLibrary.Network
 					}
 
 					// 실제 패킷을 만들어보자고
-					Packet packet = new Packet(_buffer);
+					Packet packet = new Packet();
 					if (false == packet.ByteArrayToPacket(_buffer, _consumedOffset, totalPacketSize))
 					{
 						return null;

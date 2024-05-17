@@ -7,7 +7,7 @@ namespace RedsunLibrary.Network.Server
 		Int64 GetSessionId();
 
 		void ReceiveAsync(int pendingCount = 0);
-		void SendAsync(Packet packet);
+		void Send(Packet packet);
 		void Close();
 	}
 }
