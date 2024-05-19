@@ -61,10 +61,10 @@ namespace RedsunLibrary.Network.UDP
 
 		public void StopListener()
 		{
-			_session.Dispose();
+			_session?.Dispose();
 			_session = null;
 
-			_sessionManager.Dispose();
+			_sessionManager?.Dispose();
 			_sessionManager = null;
 		}
 	}
