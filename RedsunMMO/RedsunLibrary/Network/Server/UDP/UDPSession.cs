@@ -63,6 +63,9 @@ namespace RedsunLibrary.Network.UDP
 			_sessionEventHandler = sessionEventHandler;
 
 			_listenerSession = session;
+
+			SendState = session.SendState;
+			_sendEventArgs = session._sendEventArgs;
 		}
 
 		// 서버용
