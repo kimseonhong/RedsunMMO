@@ -2,6 +2,7 @@
 using RedsunLibrary.Utils;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 
@@ -83,7 +84,7 @@ namespace RedsunLibrary.Network.UDP
 			IPAddress[] addresses = Dns.GetHostAddresses(host);
 
 			_endpoint = new IPEndPoint(addresses[0], port);
-			_socket.Connect((IPEndPoint)_endpoint);
+			//_socket.Connect((IPEndPoint)_endpoint);
 
 			_recvEventArgs.RemoteEndPoint = _endpoint;
 			_sendEventArgs.RemoteEndPoint = _endpoint;
@@ -214,6 +215,7 @@ namespace RedsunLibrary.Network.UDP
 			Buffer.BlockCopy(bytes, 0, _sendPacketBuffer, 0, bytes.Length);
 			_sendEventArgs.SetBuffer(0, bytes.Length);
 			_sendEventArgs.RemoteEndPoint = endPoint;
+			Console.WriteLine(_sendEventArgs.RemoteEndPoint.ToString());
 
 			try
 			{
