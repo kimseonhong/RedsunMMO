@@ -116,7 +116,7 @@ namespace RedsunLibrary.Network.UDP
 			_sendEventArgs.RemoteEndPoint = _endpoint;
 
 			// 시작
-			ReceiveAsync();
+			//ReceiveAsync();
 		}
 
 
