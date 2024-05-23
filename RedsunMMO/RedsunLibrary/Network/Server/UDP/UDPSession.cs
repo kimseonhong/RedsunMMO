@@ -30,25 +30,7 @@ namespace RedsunLibrary.Network.UDP
 
 		public Int64 GetSessionId() => _sessionId;
 		public EndPoint EndPoint => _endpoint;
-
-		public UDPSession(UDPSession session, UDPSessionManager sessionManager, IUDPSessionEventHandler sessionEventHandler)
-			: this(sessionEventHandler)
-		{
-			_sessionManager = sessionManager;
-
-			_listenerSession = session;
-		}
-
-		public UDPSession(EndPoint endPoint, UDPSessionManager sessionManager, IUDPSessionEventHandler sessionEventHandler)
-			: this(sessionEventHandler)
-		{
-			_sessionManager = sessionManager;
-
-			_endpoint = endPoint;
-			_recvEventArgs.RemoteEndPoint = _endpoint;
-			_sendEventArgs.RemoteEndPoint = _endpoint;
-		}
-
+		// 클라용
 		public UDPSession(IUDPSessionEventHandler sessionEventHandler)
 		{
 			RecvState = new SyncState<SocketRecvState_e>(SocketRecvState_e.NOT_RECEIVING);
@@ -72,6 +54,47 @@ namespace RedsunLibrary.Network.UDP
 			_sendEventArgs.UserToken = this;
 			_sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
 			_sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
+		}
+
+		// 서버내 세션용
+		public UDPSession(UDPSession session, UDPSessionManager sessionManager, IUDPSessionEventHandler sessionEventHandler)
+		{
+			_sessionManager = sessionManager;
+			_sessionEventHandler = sessionEventHandler;
+
+			_listenerSession = session;
+		}
+
+		// 서버용
+		public UDPSession(EndPoint endPoint, UDPSessionManager sessionManager, IUDPSessionEventHandler sessionEventHandler)
+		{
+			_sessionManager = sessionManager;
+
+			RecvState = new SyncState<SocketRecvState_e>(SocketRecvState_e.NOT_RECEIVING);
+			SendState = new SyncState<SocketSendState_e>(SocketSendState_e.NOT_SENDING);
+
+			_sessionId = 0;
+			_socket = new RawSocket(ESocketType.UDP);
+
+			_sessionEventHandler = sessionEventHandler;
+
+			_recvPacketBuffer = new byte[PacketConst.TCP_RECV_BUFFER_SIZE];
+			_sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
+			_sendPackets = new ConcurrentQueue<(Packet, EndPoint)>();
+
+			_recvEventArgs = new SocketAsyncEventArgs();
+			_recvEventArgs.UserToken = this;
+			_recvEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onReceiveCompleted);
+			_recvEventArgs.SetBuffer(_recvPacketBuffer, 0, _recvPacketBuffer.Length);
+
+			_sendEventArgs = new SocketAsyncEventArgs();
+			_sendEventArgs.UserToken = this;
+			_sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
+			_sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
+
+			_endpoint = endPoint;
+			_recvEventArgs.RemoteEndPoint = _endpoint;
+			_sendEventArgs.RemoteEndPoint = _endpoint;
 		}
 
 		public void Bind()
@@ -98,9 +121,6 @@ namespace RedsunLibrary.Network.UDP
 		{
 			_sessionId = sessionId;
 			_endpoint = endPoint;
-
-			_recvEventArgs.RemoteEndPoint = _endpoint;
-			_sendEventArgs.RemoteEndPoint = _endpoint;
 		}
 
 		public void ReceiveAsync(int pendingCount = 0)
@@ -187,11 +207,11 @@ namespace RedsunLibrary.Network.UDP
 		{
 			if (_listenerSession != null)
 			{
-				_listenerSession.SendAsync(packet, EndPoint);
+				_listenerSession.SendAsync(packet, _endpoint);
 				return;
 			}
 
-			SendAsync(packet, EndPoint);
+			SendAsync(packet, _endpoint);
 		}
 
 		private void _SendAsync(Packet packet = null, EndPoint endPoint = null)
