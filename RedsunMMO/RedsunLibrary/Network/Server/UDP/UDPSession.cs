@@ -13,23 +13,24 @@ namespace RedsunLibrary.Network.UDP
 		public SyncState<SocketRecvState_e> RecvState;
 		public SyncState<SocketSendState_e> SendState;
 
-		private UDPSession _listenerSession;
 		private Int64 _sessionId;
 		private EndPoint _endpoint;
 		private RawSocket _socket;
 
 		private SocketAsyncEventArgs _recvEventArgs;
 		private SocketAsyncEventArgs _sendEventArgs;
-
 		private byte[] _recvPacketBuffer;
 		private byte[] _sendPacketBuffer;
-		private ConcurrentQueue<(Packet, EndPoint)> _sendPackets;
+
+		//private ConcurrentQueue<(Packet, EndPoint)> _sendPackets;
+		private ConcurrentQueue<Packet> _sendPackets;
 
 		private UDPSessionManager _sessionManager;
 		private IUDPSessionEventHandler _sessionEventHandler;
 
 		public Int64 GetSessionId() => _sessionId;
 		public EndPoint EndPoint => _endpoint;
+
 		// 클라용
 		public UDPSession(IUDPSessionEventHandler sessionEventHandler)
 		{
@@ -43,7 +44,8 @@ namespace RedsunLibrary.Network.UDP
 
 			_recvPacketBuffer = new byte[PacketConst.TCP_RECV_BUFFER_SIZE];
 			_sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
-			_sendPackets = new ConcurrentQueue<(Packet, EndPoint)>();
+			//_sendPackets = new ConcurrentQueue<(Packet, EndPoint)>();
+			_sendPackets = new ConcurrentQueue<Packet>();
 
 			_recvEventArgs = new SocketAsyncEventArgs();
 			_recvEventArgs.UserToken = this;
@@ -62,10 +64,17 @@ namespace RedsunLibrary.Network.UDP
 			_sessionManager = sessionManager;
 			_sessionEventHandler = sessionEventHandler;
 
-			_listenerSession = session;
+			SendState = new SyncState<SocketSendState_e>(SocketSendState_e.NOT_SENDING);
 
-			SendState = session.SendState;
-			_sendEventArgs = session._sendEventArgs;
+			_socket = session._socket;
+
+			_sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
+			_sendPackets = new ConcurrentQueue<Packet>();
+
+			_sendEventArgs = new SocketAsyncEventArgs();
+			_sendEventArgs.UserToken = this;
+			_sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
+			_sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
 		}
 
 		// 서버용
@@ -74,7 +83,6 @@ namespace RedsunLibrary.Network.UDP
 			_sessionManager = sessionManager;
 
 			RecvState = new SyncState<SocketRecvState_e>(SocketRecvState_e.NOT_RECEIVING);
-			SendState = new SyncState<SocketSendState_e>(SocketSendState_e.NOT_SENDING);
 
 			_sessionId = 0;
 			_socket = new RawSocket(ESocketType.UDP);
@@ -82,22 +90,23 @@ namespace RedsunLibrary.Network.UDP
 			_sessionEventHandler = sessionEventHandler;
 
 			_recvPacketBuffer = new byte[PacketConst.TCP_RECV_BUFFER_SIZE];
-			_sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
-			_sendPackets = new ConcurrentQueue<(Packet, EndPoint)>();
+			//_sendPacketBuffer = new byte[PacketConst.TCP_SEND_BUFFER_SIZE];
+			//_sendPackets = new ConcurrentQueue<(Packet, EndPoint)>();
 
 			_recvEventArgs = new SocketAsyncEventArgs();
 			_recvEventArgs.UserToken = this;
 			_recvEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onReceiveCompleted);
 			_recvEventArgs.SetBuffer(_recvPacketBuffer, 0, _recvPacketBuffer.Length);
 
-			_sendEventArgs = new SocketAsyncEventArgs();
-			_sendEventArgs.UserToken = this;
-			_sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
-			_sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
+			//SendState = new SyncState<SocketSendState_e>(SocketSendState_e.NOT_SENDING);
+			//_sendEventArgs = new SocketAsyncEventArgs();
+			//_sendEventArgs.UserToken = this;
+			//_sendEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(onSendCompleted);
+			//_sendEventArgs.SetBuffer(_sendPacketBuffer, 0, _sendPacketBuffer.Length);
+			//_sendEventArgs.RemoteEndPoint = _endpoint;
 
 			_endpoint = endPoint;
 			_recvEventArgs.RemoteEndPoint = _endpoint;
-			_sendEventArgs.RemoteEndPoint = _endpoint;
 		}
 
 		public void Bind()
@@ -110,13 +119,12 @@ namespace RedsunLibrary.Network.UDP
 			IPAddress[] addresses = Dns.GetHostAddresses(host);
 
 			_endpoint = new IPEndPoint(addresses[0], port);
-			//_socket.Connect((IPEndPoint)_endpoint);
+			_socket.Connect((IPEndPoint)_endpoint);
 
 			_recvEventArgs.RemoteEndPoint = _endpoint;
 			_sendEventArgs.RemoteEndPoint = _endpoint;
 
-			// 시작
-			//ReceiveAsync();
+			ReceiveAsync();
 		}
 
 
@@ -124,6 +132,8 @@ namespace RedsunLibrary.Network.UDP
 		{
 			_sessionId = sessionId;
 			_endpoint = endPoint;
+
+			_sendEventArgs.RemoteEndPoint = endPoint;
 		}
 
 		public void ReceiveAsync(int pendingCount = 0)
@@ -194,52 +204,58 @@ namespace RedsunLibrary.Network.UDP
 			}
 		}
 
-		public void SendAsync(Packet packet, EndPoint endPoint)
+		public void Send(Packet packet)
 		{
 			// Not Sending 이 아니라면 전송중인상태임으로 큐에 패킷 쌓음
 			if (false == SendState.IsState(SocketSendState_e.NOT_SENDING))
 			{
-				_sendPackets.Enqueue((packet, endPoint));
+				_sendPackets.Enqueue(packet);
 				return;
 			}
 
-			_SendAsync(packet, endPoint);
+			_SendAsync(packet);
 		}
 
-		public void Send(Packet packet)
+		//private void _SendAsync(Packet packet = null, EndPoint endPoint = null)
+		private void _SendAsync(Packet packet = null)
 		{
-			if (_listenerSession != null)
-			{
-				_listenerSession.SendAsync(packet, _endpoint);
-				return;
-			}
+			Console.WriteLine("시도");
+			//if (packet == null && endPoint == null)
+			//{
+			//	if (false == _sendPackets.TryDequeue(out var data))
+			//	{
+			//		SendState.ExchangeNotEqual(SocketSendState_e.NOT_SENDING, out var old2State);
+			//		return;
+			//	}
+			//
+			//	packet = data.Item1;
+			//	endPoint = data.Item2;
+			//}
 
-			SendAsync(packet, _endpoint);
-		}
-
-		private void _SendAsync(Packet packet = null, EndPoint endPoint = null)
-		{
-			if (packet == null && endPoint == null)
+			if (packet == null)
 			{
-				if (false == _sendPackets.TryDequeue(out var data))
+				if (false == _sendPackets.TryDequeue(out packet))
 				{
 					SendState.ExchangeNotEqual(SocketSendState_e.NOT_SENDING, out var old2State);
 					return;
 				}
-
-				packet = data.Item1;
-				endPoint = data.Item2;
 			}
 
 			// 여기는 packet 이 null 이 아님
 			SendState.ExchangeNotEqual(SocketSendState_e.SENDING, out var oldState);
 			// 복사 및 세팅
 			var bytes = packet.PacketToByteArray();
+			//var eventArgs = new SocketAsyncEventArgs();
+			//eventArgs.SetBuffer(bytes, 0, bytes.Length);
+			//eventArgs.RemoteEndPoint = endPoint;
+
+			//Buffer.BlockCopy(bytes, 0, _sendPacketBuffer, 0, bytes.Length);
+
+			// 복사 및 세팅
 			Buffer.BlockCopy(bytes, 0, _sendPacketBuffer, 0, bytes.Length);
 			_sendEventArgs.SetBuffer(0, bytes.Length);
-			_sendEventArgs.RemoteEndPoint = endPoint;
-			Console.WriteLine(_sendEventArgs.RemoteEndPoint.ToString());
 
+			Console.WriteLine(_sendEventArgs.RemoteEndPoint.ToString());
 			try
 			{
 				bool pending = _socket.SendAsync(_sendEventArgs);
@@ -262,6 +278,7 @@ namespace RedsunLibrary.Network.UDP
 				if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
 				{
 					_SendAsync();
+					Console.WriteLine("완료");
 					return;
 				}
 				else
