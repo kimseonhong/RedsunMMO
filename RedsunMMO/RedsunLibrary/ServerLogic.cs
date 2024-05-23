@@ -26,13 +26,14 @@ namespace RedsunLibrary
 		private Thread _runningThread;
 
 		private bool _useThreadSleep = false;
-
-		public ServerLogic(double fps = DEFAULT_FPS, bool useThreadSleep = false)
+		private bool _useConsoleTitle = false;
+		public ServerLogic(double fps = DEFAULT_FPS, bool useThreadSleep = false, bool consoleTitle = false)
 		{
 			FPS = fps;
 			SECONDS_PER_FRAME = 1.0 / FPS;
 
 			_useThreadSleep = useThreadSleep;
+			_useConsoleTitle = consoleTitle;
 
 			_packetQueue = new ConcurrentQueue<PacketMessage>();
 			_runningThread = new Thread(_Update)
@@ -136,7 +137,8 @@ namespace RedsunLibrary
 
 				if (currentTime - _lastFPSCheckTime >= 1.0)
 				{
-					//Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
+					if (_useConsoleTitle)
+						Console.Title = $"PacketFrame: {_packetFrameCount} | FPS: {_frameCount}";
 					_frameCount = 0;
 					_packetFrameCount = 0;
 					_lastFPSCheckTime = currentTime;

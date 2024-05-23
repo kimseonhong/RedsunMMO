@@ -78,10 +78,20 @@ namespace RedsunLibrary.Network.UDP
 			_socket.Bind(_endpoint);
 		}
 
-		public void Connect(IPEndPoint endPoint)
+		public void Connect(string host, Int32 port)
 		{
-			_socket.Connect(endPoint);
+			IPAddress[] addresses = Dns.GetHostAddresses(host);
+
+			_endpoint = new IPEndPoint(addresses[0], port);
+			_socket.Connect((IPEndPoint)_endpoint);
+
+			_recvEventArgs.RemoteEndPoint = _endpoint;
+			_sendEventArgs.RemoteEndPoint = _endpoint;
+
+			// 시작
+			ReceiveAsync();
 		}
+
 
 		public void AcceptSession(Int64 sessionId, EndPoint endPoint)
 		{

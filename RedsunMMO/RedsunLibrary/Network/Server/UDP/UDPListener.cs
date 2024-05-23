@@ -32,19 +32,6 @@ namespace RedsunLibrary.Network.UDP
 			_session.ReceiveAsync();
 		}
 
-		public void Connect(string host, Int32 port)
-		{
-			IPAddress[] addresses = Dns.GetHostAddresses(host);
-
-			_endPoint = new IPEndPoint(addresses[0], port);
-
-			_session = new UDPSession(_endPoint, _sessionManager, _sessionEventHandler);
-			_session.Connect((IPEndPoint)_endPoint);
-
-			// 시작
-			_session.ReceiveAsync();
-		}
-
 		public void SendToClientAll(Packet packet)
 		{
 			foreach (var session in _sessionManager.GetConnectUDPSessions())
