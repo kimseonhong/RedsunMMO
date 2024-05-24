@@ -261,12 +261,27 @@ namespace RedsunLibrary.Network.UDP
 
 		public void Close()
 		{
+			if (_sessionId != 0)
+			{
+				Dispose();
+				return;
+			}
+
 			_socket?.Close();
 			Dispose();
 		}
 
 		public void Dispose()
 		{
+			if (_sessionId != 0)
+			{
+				_sessionManager.PushSession(this);
+				return;
+			}
+
+			_socket?.Dispose();
+			_socket = null;
+
 			RecvState = null;
 			SendState = null;
 
@@ -275,9 +290,6 @@ namespace RedsunLibrary.Network.UDP
 
 			_recvEventArgs = null;
 			_sendEventArgs = null;
-
-			_socket?.Dispose();
-			_socket = null;
 		}
 	}
 }
