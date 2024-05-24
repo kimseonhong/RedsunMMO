@@ -156,17 +156,17 @@ namespace RedsunLibrary.Network.UDP
 		private void onReceiveCompleted(object sender, SocketAsyncEventArgs e)
 		{
 			UDPSession client = this;
+			if (_sessionManager != null)
+			{
+				client = _sessionManager.FindOrPopSession(e.RemoteEndPoint);
+			}
+
 			try
 			{
 				// if Receive Size <= 0 , Socket Disconnect!1
 				if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
 				{
 					// UDP는 데이터가 도착할때 Dgram 형식임으로 패킷 덩어리가 분실될지언정 도착했다면 모든 데이터가 온거임.
-					if (_sessionManager != null)
-					{
-						client = _sessionManager.FindOrPopSession(e.RemoteEndPoint);
-					}
-
 					var memory = new Memory<byte>(e.Buffer);
 					var byteData = memory.Slice(0, e.BytesTransferred).ToArray();
 
@@ -177,19 +177,24 @@ namespace RedsunLibrary.Network.UDP
 					}
 
 					_sessionEventHandler?.onReceived(client, packet);
-
 					ReceiveAsync();
 					return;
 				}
 				else
 				{
-					Close();
+					Close(client);
+
+					if (_sessionManager != null)
+						ReceiveAsync();
 				}
 			}
 			catch (Exception ex)
 			{
 				_sessionEventHandler?.onInvaliedReceived(client, ex);
-				Close();
+				Close(client);
+
+				if (_sessionManager != null)
+					ReceiveAsync();
 			}
 		}
 
@@ -269,6 +274,11 @@ namespace RedsunLibrary.Network.UDP
 
 			_socket?.Close();
 			Dispose();
+		}
+
+		public void Close(UDPSession session)
+		{
+			session.Dispose();
 		}
 
 		public void Dispose()

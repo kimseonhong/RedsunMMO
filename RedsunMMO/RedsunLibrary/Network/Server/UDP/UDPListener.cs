@@ -34,9 +34,9 @@ namespace RedsunLibrary.Network.UDP
 
 		public void SendToClientAll(Packet packet)
 		{
-			foreach (var session in _sessionManager.GetConnectUDPSessions())
+			foreach (var session in _sessionManager.GetConnectedUDPSessionsByList())
 			{
-				session.Value.Send(packet);
+				session.Send(packet);
 				//_session.SendAsync(packet, session.Value.EndPoint);
 			}
 		}

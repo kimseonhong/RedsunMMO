@@ -117,6 +117,10 @@ namespace RedsunLibrary.Network.UDP
 		{
 			return _sessionList;
 		}
+		public List<UDPSession> GetConnectedUDPSessionsByList()
+		{
+			return _sessionList.Values.ToList();
+		}
 
 		public void Dispose()
 		{
