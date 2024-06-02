@@ -66,6 +66,8 @@ namespace RedsunLibrary.Network.UDP
 
 		public UDPSession FindOrPopSession(EndPoint endpoint)
 		{
+			if (_isDisposed) return null;
+
 			if (_sessionIdToEndPoint.TryGetValue(endpoint, out var session))
 			{
 				return session;
@@ -75,6 +77,8 @@ namespace RedsunLibrary.Network.UDP
 
 		public UDPSession PopSession(EndPoint endpoint)
 		{
+			if (_isDisposed) return null;
+
 			UDPSession session;
 
 			lock (_lockObj)
@@ -104,11 +108,13 @@ namespace RedsunLibrary.Network.UDP
 
 		public void PushSession(UDPSession session)
 		{
+			if (_isDisposed) return;
+
 			lock (_lockObj)
 			{
-				_sessionList.Remove(session.GetSessionId());
-				_sessionIdToEndPoint.Remove(session.EndPoint);
-				_sessionQueue.Enqueue(session);
+				_sessionList?.Remove(session.GetSessionId());
+				_sessionIdToEndPoint?.Remove(session.EndPoint);
+				_sessionQueue?.Enqueue(session);
 			}
 			return;
 		}
@@ -122,24 +128,40 @@ namespace RedsunLibrary.Network.UDP
 			return _sessionList.Values.ToList();
 		}
 
+		public UDPSession FindSession(Int64 sessionId)
+		{
+			if (_isDisposed) return null;
+
+			_sessionList.TryGetValue(sessionId, out var session);
+			return session;
+		}
+
+		private bool _isDisposed = false;
 		public void Dispose()
 		{
+			if (_isDisposed == true)
+			{
+				return;
+			}
+
 			_sessionIdToEndPoint.Clear();
 			_sessionIdToEndPoint = null;
 
 			foreach (var data in _sessionList)
 			{
-				data.Value.Dispose();
+				data.Value.SessionDispose();
 			}
 			_sessionList.Clear();
 			_sessionList = null;
 
 			foreach (var data in _sessionQueue)
 			{
-				data.Dispose();
+				data.SessionDispose();
 			}
 			_sessionQueue.Clear();
 			_sessionQueue = null;
+
+			_isDisposed = true;
 		}
 	}
 }

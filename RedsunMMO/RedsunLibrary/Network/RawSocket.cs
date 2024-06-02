@@ -130,7 +130,7 @@ namespace RedsunLibrary.Network
 		}
 
 		private bool _disposed = false;
-
+		public bool IsDisposed => _disposed;
 		public void Dispose()
 		{
 			lock (_lockObj)

@@ -116,7 +116,6 @@ namespace RedsunLibrary.Network.UDP
 			ReceiveAsync();
 		}
 
-
 		public void AcceptSession(Int64 sessionId, EndPoint endPoint)
 		{
 			_sessionId = sessionId;
@@ -127,6 +126,8 @@ namespace RedsunLibrary.Network.UDP
 
 		public void ReceiveAsync(int pendingCount = 0)
 		{
+			if (_isDisposed) return;
+
 			RecvState.Exchange(SocketRecvState_e.RECEIVING);
 			// OverFlow 조심
 			if (pendingCount > 5)
@@ -155,10 +156,17 @@ namespace RedsunLibrary.Network.UDP
 
 		private void onReceiveCompleted(object sender, SocketAsyncEventArgs e)
 		{
+			if (_isDisposed) return;
+
 			UDPSession client = this;
 			if (_sessionManager != null)
 			{
 				client = _sessionManager.FindOrPopSession(e.RemoteEndPoint);
+				if (client == null)
+				{
+					ReceiveAsync();
+					return;
+				}
 			}
 
 			try
@@ -200,6 +208,8 @@ namespace RedsunLibrary.Network.UDP
 
 		public void Send(Packet packet)
 		{
+			if (_isDisposed) return;
+
 			// Not Sending 이 아니라면 전송중인상태임으로 큐에 패킷 쌓음
 			if (false == SendState.IsState(SocketSendState_e.NOT_SENDING))
 			{
@@ -212,6 +222,8 @@ namespace RedsunLibrary.Network.UDP
 
 		private void _SendAsync(Packet packet = null)
 		{
+			if (_isDisposed) return;
+
 			if (packet == null)
 			{
 				if (false == _sendPackets.TryDequeue(out packet))
@@ -244,6 +256,8 @@ namespace RedsunLibrary.Network.UDP
 
 		private void onSendCompleted(object sender, SocketAsyncEventArgs e)
 		{
+			if (_isDisposed) return;
+
 			try
 			{
 				// if Receive Size <= 0 , Socket Disconnect!1
@@ -268,7 +282,7 @@ namespace RedsunLibrary.Network.UDP
 		{
 			if (_sessionId != 0)
 			{
-				Dispose();
+				_sessionManager?.PushSession(this);
 				return;
 			}
 
@@ -278,14 +292,21 @@ namespace RedsunLibrary.Network.UDP
 
 		public void Close(UDPSession session)
 		{
-			session.Dispose();
-		}
-
-		public void Dispose()
-		{
 			if (_sessionId != 0)
 			{
-				_sessionManager.PushSession(this);
+				_sessionManager?.PushSession(session);
+				return;
+			}
+
+			_socket?.Close();
+			Dispose();
+		}
+
+		private bool _isDisposed = false;
+		public void Dispose()
+		{
+			if (_isDisposed == true)
+			{
 				return;
 			}
 
@@ -300,6 +321,13 @@ namespace RedsunLibrary.Network.UDP
 
 			_recvEventArgs = null;
 			_sendEventArgs = null;
+
+			_isDisposed = true;
+		}
+
+		public void SessionDispose()
+		{
+			_isDisposed = true;
 		}
 	}
 }

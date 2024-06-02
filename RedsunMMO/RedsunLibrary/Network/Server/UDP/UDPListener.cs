@@ -41,6 +41,11 @@ namespace RedsunLibrary.Network.UDP
 			}
 		}
 
+		public UDPSession FindSession(Int64 sessionId)
+		{
+			return _sessionManager.FindSession(sessionId);
+		}
+
 		public void SendToServer(Packet packet)
 		{
 			_session.Send(packet);
@@ -48,11 +53,11 @@ namespace RedsunLibrary.Network.UDP
 
 		public void StopListener()
 		{
-			_session?.Dispose();
-			_session = null;
-
 			_sessionManager?.Dispose();
 			_sessionManager = null;
+
+			_session?.Close();
+			//_session = null;
 		}
 	}
 }
