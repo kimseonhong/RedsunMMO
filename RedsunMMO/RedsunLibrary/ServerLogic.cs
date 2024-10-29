@@ -162,6 +162,11 @@ namespace RedsunLibrary
 				return;
 			}
 
+			if (waitTimeInSeconds < 0.005)
+			{
+				return;
+			}
+
 			var until = Stopwatch.GetTimestamp() + Stopwatch.Frequency * waitTimeInSeconds;
 			while (Stopwatch.GetTimestamp() < until) ;
 		}

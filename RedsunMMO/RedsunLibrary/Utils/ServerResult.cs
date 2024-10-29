@@ -65,7 +65,7 @@ namespace RedsunLibrary.Utils
 		public ServerResult setFail()
 		{
 			_resultType = EResultType.FAIL;
-			_resultCode = 0;
+			_resultCode = -100_000_000;
 			return this;
 		}
 
@@ -79,7 +79,7 @@ namespace RedsunLibrary.Utils
 		public ServerResult setFail(string description)
 		{
 			_resultType = EResultType.FAIL;
-			_resultCode = 0;
+			_resultCode = -100_000_000;
 			_descritpion = description;
 			return this;
 		}
@@ -95,7 +95,7 @@ namespace RedsunLibrary.Utils
 		public ServerResult setException()
 		{
 			_resultType = EResultType.FAIL;
-			_resultCode = 0;
+			_resultCode = -500_000_000;
 			return this;
 		}
 
@@ -109,7 +109,7 @@ namespace RedsunLibrary.Utils
 		public ServerResult setException(string description)
 		{
 			_resultType = EResultType.FAIL;
-			_resultCode = 0;
+			_resultCode = -500_000_000;
 			_descritpion = description;
 			return this;
 		}
