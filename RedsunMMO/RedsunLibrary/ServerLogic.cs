@@ -107,15 +107,20 @@ namespace RedsunLibrary
 			sw.Start();
 
 			double nextGameLogicTime = 0;  // 다음 게임 로직 업데이트 시간
+			double previousTime = 0;       // 이전 시간
 
 			while (_isRunning)
 			{
 				double currentTime = sw.Elapsed.TotalSeconds;
 
+				// deltaTime 계산
+				double deltaTime = currentTime - previousTime;
+				previousTime = currentTime;
+
 				// 게임 로직 업데이트 (60 FPS)
 				if (currentTime >= nextGameLogicTime)
 				{
-					GameLogicUpdate();
+					GameLogicUpdate((float)deltaTime);
 					nextGameLogicTime = currentTime + SECONDS_PER_FRAME;
 					_frameCount++;
 				}
@@ -207,6 +212,6 @@ namespace RedsunLibrary
 		}
 
 		public abstract void PacketProcessor(PacketMessage packetMessage);
-		public abstract void GameLogicUpdate();
+		public abstract void GameLogicUpdate(float deltaTime);
 	}
 }
