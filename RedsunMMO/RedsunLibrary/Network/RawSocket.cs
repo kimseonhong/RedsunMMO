@@ -70,7 +70,7 @@ namespace RedsunLibrary.Network
 
 				_socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
 				_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-				_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+				//_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 			}
 		}
 
