@@ -145,7 +145,7 @@ namespace RedsunLibrary.Network.UDP
 			}
 			catch (Exception e)
 			{
-				Logger.Print(e.ToString());
+				Logger.PrintError(e.ToString());
 			}
 
 			if (false == pending)

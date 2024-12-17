@@ -60,7 +60,7 @@ namespace RedsunLibrary.Network.TCP
 			}
 			catch (Exception e)
 			{
-				Logger.Print(e.ToString());
+				Logger.PrintError(e.ToString());
 				_AcceptAsync();
 			}
 
@@ -84,7 +84,7 @@ namespace RedsunLibrary.Network.TCP
 			else
 			{
 				//todo:Accept 실패 처리.
-				Logger.Print("Failed to accept client. " + e.SocketError);
+				Logger.PrintError("Failed to accept client. " + e.SocketError);
 			}
 			_AcceptAsync();
 		}

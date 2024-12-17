@@ -71,7 +71,7 @@ namespace RedsunLibrary.Network.TCP
 		{
 			if (false == SocketState.IsState(SocketState_e.NOT_CONNECTED))
 			{
-				Logger.Print("Alreay Connected");
+				Logger.PrintError("Alreay Connected");
 				_sessionEventHandler?.onConnectFailed("Alreay Connected");
 				DisconnectAsync();
 				return;
@@ -86,7 +86,7 @@ namespace RedsunLibrary.Network.TCP
 			}
 			catch (Exception e)
 			{
-				Logger.Print(e.ToString());
+				Logger.PrintError(e.ToString());
 			}
 
 			if (false == pending)
@@ -135,19 +135,18 @@ namespace RedsunLibrary.Network.TCP
 				return;
 			}
 
-			bool pending = true;
 			try
 			{
-				pending = _socket.ReceiveAsync(_recvEventArgs);
+				bool pending = _socket.ReceiveAsync(_recvEventArgs);
+				if (pending == false)
+				{
+					onReceiveCompleted(_socket, _recvEventArgs);
+				}
 			}
 			catch (Exception e)
 			{
-				Logger.Print(e.ToString());
-			}
-
-			if (false == pending)
-			{
-				onReceiveCompleted(_socket, _recvEventArgs);
+				Logger.PrintError(e.ToString());
+				DisconnectAsync();
 			}
 		}
 
@@ -242,6 +241,7 @@ namespace RedsunLibrary.Network.TCP
 			}
 			catch (Exception e)
 			{
+				Logger.PrintError(e.ToString());
 				DisconnectAsync();
 			}
 		}
@@ -277,7 +277,20 @@ namespace RedsunLibrary.Network.TCP
 			}
 
 			SocketState.Exchange(SocketState_e.DISCONNECTING);
-			_socket.DisconnectAsync(_disconnectEventArgs);
+
+			try
+			{
+				bool pending = _socket.DisconnectAsync(_disconnectEventArgs);
+				if (pending == false)
+				{
+					onDisconnectCompleted(this, _disconnectEventArgs);
+				}
+			}
+			catch (Exception e)
+			{
+				Logger.PrintError(e.ToString());
+				onDisconnectCompleted(this, _disconnectEventArgs);
+			}
 		}
 
 		private void onDisconnectCompleted(object sender, SocketAsyncEventArgs e)
