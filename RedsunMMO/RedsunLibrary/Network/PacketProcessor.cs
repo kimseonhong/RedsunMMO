@@ -77,7 +77,7 @@ namespace RedsunLibrary.Network
 					}
 
 					// 실제 패킷의 전체 사이즈보다 현재 기록된 received size 가 작다면 아직 덜 받은거
-					if (totalPacketSize < receivedLength)
+					if (totalPacketSize > receivedLength)
 					{
 						return null;
 					}
